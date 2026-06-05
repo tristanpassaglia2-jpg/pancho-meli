@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './ElderChat.css';
 import { hablar, callar, crearReconocedorVoz, vozDisponible, precargarVoces } from '../lib/voz';
+import { obtenerOCrearAbuelo, cargarHistorial, guardarMensaje, getDeviceElderId } from '../lib/memoria';
 
 // Placeholder avatar hasta que tengamos los de Higgsfield
 const PANCHO_AVATAR = '👴';
@@ -15,6 +16,7 @@ export default function ElderChat() {
   const [elderName, setElderName] = useState('');
   const [isSetup, setIsSetup] = useState(false);
   const [showGames, setShowGames] = useState(false);
+  const [elderId, setElderId] = useState(null); // id del abuelo en Supabase (memoria)
   // ── Voz ──
   const [vozActivada, setVozActivada] = useState(true); // por defecto activada (accesibilidad)
   const [escuchando, setEscuchando] = useState(false);
@@ -27,6 +29,44 @@ export default function ElderChat() {
 
   // Precargar voces del navegador al montar
   useEffect(() => { precargarVoces(); }, []);
+
+  // Al abrir: si este dispositivo ya tiene un abuelo guardado, lo reconocemos
+  // y entramos directo al chat con su historial (Pancho lo recuerda).
+  useEffect(() => {
+    const idGuardado = getDeviceElderId();
+    if (!idGuardado) return; // abuelo nuevo, mostramos setup normal
+
+    (async () => {
+      try {
+        const { supabase } = await import('../lib/supabase');
+        const { data } = await supabase.from('elders').select('*').eq('id', idGuardado).single();
+        if (data) {
+          // Recuperamos su configuración
+          setElderId(data.id);
+          setElderName(data.nombre);
+          setCompanionName(data.companion_name || 'Pancho');
+          setCompanionGender(data.companion_gender || 'male');
+          // Cargamos el historial de charlas
+          const hist = await cargarHistorial(data.id);
+          if (hist.length > 0) {
+            setMessages(hist);
+          } else {
+            // Sin historial: saludo de reencuentro
+            const g = (data.companion_gender || 'male') === 'male'
+              ? `¡Hola de nuevo ${data.nombre}! Soy Pancho. ¡Qué bueno verte otra vez! ¿Cómo venís? 😄`
+              : `¡Hola de nuevo ${data.nombre}! Soy Meli. ¡Qué alegría que volviste! ¿Cómo andás? 😊`;
+            setMessages([{ id: 1, role: 'companion', text: g, time: now() }]);
+          }
+          setIsSetup(true);
+        }
+      } catch {
+        // si falla, dejamos el setup normal
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const now = () => new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 
   // Cuando llega un mensaje nuevo del compañero y la voz está activada, leerlo
   useEffect(() => {
@@ -78,25 +118,29 @@ export default function ElderChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  // Setup rápido para demo (después se reemplaza por el flujo real con Supabase)
-  const handleSetup = (e) => {
+  // Setup: crea el abuelo en Supabase (memoria) y arranca la charla
+  const handleSetup = async (e) => {
     e.preventDefault();
     if (!elderName.trim()) return;
     setIsSetup(true);
 
-    // Primer mensaje de bienvenida
-    setTimeout(() => {
-      const greeting = companionGender === 'male'
-        ? `¡Hola ${elderName}! Soy Pancho, tu nuevo compañero de charlas. Me dijeron que te gusta conversar, ¡así que ya tenemos tema para rato! 😄 ¿Cómo andás hoy?`
-        : `¡Hola ${elderName}! Soy Meli, tu nueva compañera de charlas. Me contaron que sos una persona muy interesante, ¡así que acá estoy para conocerte! 😊 ¿Cómo estás hoy?`;
+    // Crear/recuperar el abuelo en Supabase (memoria)
+    const abuelo = await obtenerOCrearAbuelo({
+      nombre: elderName.trim(),
+      companionName,
+      companionGender
+    });
+    if (abuelo) setElderId(abuelo.id);
 
-      setMessages([{
-        id: 1,
-        role: 'companion',
-        text: greeting,
-        time: new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
-      }]);
-    }, 1000);
+    // Primer mensaje de bienvenida
+    const greeting = companionGender === 'male'
+      ? `¡Hola ${elderName}! Soy Pancho, tu nuevo compañero de charlas. Me dijeron que te gusta conversar, ¡así que ya tenemos tema para rato! 😄 ¿Cómo andás hoy?`
+      : `¡Hola ${elderName}! Soy Meli, tu nueva compañera de charlas. Me contaron que sos una persona muy interesante, ¡así que acá estoy para conocerte! 😊 ¿Cómo estás hoy?`;
+
+    setMessages([{ id: 1, role: 'companion', text: greeting, time: now() }]);
+
+    // Guardamos el saludo en la memoria
+    if (abuelo) guardarMensaje(abuelo.id, 'companion', greeting);
   };
 
   // Enviar mensaje (desde el input de texto)
@@ -111,13 +155,16 @@ export default function ElderChat() {
       id: Date.now(),
       role: 'elder',
       text,
-      time: new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+      time: now()
     };
 
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
     setShowGames(false);
+
+    // Guardar el mensaje del abuelo en la memoria
+    if (elderId) guardarMensaje(elderId, 'elder', text);
 
     try {
       // Llamada al backend proxy de Claude API
@@ -137,22 +184,26 @@ export default function ElderChat() {
       });
 
       const data = await response.json();
+      const replyText = data.reply || '¡Uy, me trabé un momento! ¿Me repetís eso?';
 
       const companionMsg = {
         id: Date.now() + 1,
         role: 'companion',
-        text: data.reply || '¡Uy, me trabé un momento! ¿Me repetís eso?',
-        time: new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+        text: replyText,
+        time: now()
       };
 
       setMessages(prev => [...prev, companionMsg]);
+
+      // Guardar la respuesta de Pancho en la memoria
+      if (elderId) guardarMensaje(elderId, 'companion', replyText);
     } catch (err) {
       console.error('Error al chatear:', err);
       setMessages(prev => [...prev, {
         id: Date.now() + 1,
         role: 'companion',
         text: '¡Uy, parece que me quedé sin señal un momento! ¿Me escribís de nuevo? 😊',
-        time: new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+        time: now()
       }]);
     } finally {
       setIsTyping(false);
