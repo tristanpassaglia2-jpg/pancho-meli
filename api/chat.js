@@ -41,7 +41,7 @@ export default async function handler(req, res) {
     // Elegir modelo según el tipo de interacción:
     // - Idiomas y conversación → Sonnet (calidad pedagógica/emocional)
     // - Juegos estructurados → Haiku (más barato, respuestas predecibles)
-    let model = 'claude-sonnet-4-6-20250514';
+    let model = 'claude-sonnet-4-6';
     if (earlyIntent && !earlyIntent.isLanguage && !earlyIntent.needsImprov) {
       model = 'claude-haiku-4-5-20251001';
     }
