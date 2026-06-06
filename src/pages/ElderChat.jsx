@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import './ElderChat.css';
 import { hablar, callar, crearReconocedorVoz, vozDisponible, precargarVoces } from '../lib/voz';
 import { obtenerOCrearAbuelo, cargarHistorial, guardarMensaje, getDeviceElderId } from '../lib/memoria';
+import { avisarAFamilia, mensajeTranquilizador } from '../lib/aviso-familia';
 
 // Placeholder avatar hasta que tengamos los de Higgsfield
 const PANCHO_AVATAR = '👴';
@@ -17,6 +18,7 @@ export default function ElderChat() {
   const [isSetup, setIsSetup] = useState(false);
   const [showGames, setShowGames] = useState(false);
   const [elderId, setElderId] = useState(null); // id del abuelo en Supabase (memoria)
+  const [mostrarAviso, setMostrarAviso] = useState(false); // modal de confirmación del aviso
   // ── Voz ──
   const [vozActivada, setVozActivada] = useState(true); // por defecto activada (accesibilidad)
   const [escuchando, setEscuchando] = useState(false);
@@ -217,6 +219,22 @@ export default function ElderChat() {
     }
   };
 
+  // El abuelo confirma que quiere avisar a su familia
+  const confirmarAviso = async () => {
+    setMostrarAviso(false);
+    // Registrar el pedido de ayuda
+    await avisarAFamilia(elderId, elderName, 'El abuelo avisó que no se siente bien');
+    // Pancho responde con calidez tranquilizadora
+    const msg = mensajeTranquilizador(companionGender, elderName);
+    const companionMsg = { id: Date.now(), role: 'companion', text: msg, time: now() };
+    setMessages(prev => [...prev, companionMsg]);
+    if (elderId) guardarMensaje(elderId, 'companion', msg);
+    // Que lo lea en voz alta si la voz está activada
+    if (vozActivada) {
+      hablar(msg, companionGender, { onStart: () => setHablando(true), onEnd: () => setHablando(false) });
+    }
+  };
+
   // Juegos disponibles
   const games = [
     { id: 'trivia', emoji: '🌍', name: 'Trivia' },
@@ -322,7 +340,34 @@ export default function ElderChat() {
         >
           🎮
         </button>
+        <button
+          className="chat-header-sos"
+          onClick={() => setMostrarAviso(true)}
+          title="Avisar a mi familia"
+        >
+          🆘
+        </button>
       </header>
+
+      {/* Modal de aviso a la familia */}
+      {mostrarAviso && (
+        <div className="aviso-overlay" onClick={() => setMostrarAviso(false)}>
+          <div className="aviso-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="aviso-emoji">💛</div>
+            <h2 className="aviso-titulo">¿Avisamos a tu familia?</h2>
+            <p className="aviso-texto">
+              Si no te sentís bien, le aviso a tu familia para que se comuniquen con vos.
+              No estás solo/a.
+            </p>
+            <button className="aviso-btn-si" onClick={confirmarAviso}>
+              Sí, avisá a mi familia
+            </button>
+            <button className="aviso-btn-no" onClick={() => setMostrarAviso(false)}>
+              No, estoy bien
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Panel de juegos */}
       {showGames && (
