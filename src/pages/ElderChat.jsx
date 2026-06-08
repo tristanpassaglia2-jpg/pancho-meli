@@ -317,7 +317,7 @@ export default function ElderChat() {
     <div className="chat-screen">
       {/* Header */}
       <header className="chat-header">
-        <div className="chat-header-avatar"><img src={avatar} alt={companionName} /></div>
+        <div className={`chat-header-avatar ${hablando ? 'hablando' : ''}`}><img src={avatar} alt={companionName} /></div>
         <div className="chat-header-info">
           <h1 className="chat-header-name">{companionName}</h1>
           <span className="chat-header-status">
@@ -406,7 +406,7 @@ export default function ElderChat() {
         ))}
 
         {isTyping && (
-          <div className="chat-bubble companion animate-fade">
+          <div className="chat-bubble companion escribiendo animate-fade">
             <div className="chat-bubble-avatar"><img src={avatar} alt={companionName} /></div>
             <div className="chat-bubble-content">
               <div className="typing-indicator">
