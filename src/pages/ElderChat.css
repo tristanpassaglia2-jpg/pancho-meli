@@ -185,7 +185,22 @@
   background: rgba(255,255,255,0.25);
 }
 
-/* Botón SOS / avisar a la familia */
+/* Imágenes de avatar en la pantalla de inicio */
+.setup-avatar-img {
+  width: 90px;
+  height: 90px;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+}
+
+.companion-option-img {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+  margin-bottom: 0.5rem;
+}
 .chat-header-sos {
   font-size: 1.8rem;
   background: rgba(255,255,255,0.2);
