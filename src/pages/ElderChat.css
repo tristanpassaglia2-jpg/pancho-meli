@@ -156,6 +156,26 @@
   object-fit: cover;
 }
 
+/* Animación sutil: la foto "late" suave cuando Pancho habla */
+.chat-header-avatar.hablando {
+  animation: avatarHablar 0.9s ease-in-out infinite;
+}
+
+@keyframes avatarHablar {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(7,94,84,0.4); }
+  50% { transform: scale(1.06); box-shadow: 0 0 0 6px rgba(7,94,84,0); }
+}
+
+/* La foto en la burbuja "respira" mientras escribe */
+.chat-bubble.companion.escribiendo .chat-bubble-avatar {
+  animation: avatarRespirar 1.6s ease-in-out infinite;
+}
+
+@keyframes avatarRespirar {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
 .chat-header-info { flex: 1; }
 
 .chat-header-name {
