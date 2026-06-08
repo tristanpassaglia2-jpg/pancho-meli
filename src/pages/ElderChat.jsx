@@ -4,9 +4,9 @@ import { hablar, callar, crearReconocedorVoz, vozDisponible, precargarVoces } fr
 import { obtenerOCrearAbuelo, cargarHistorial, guardarMensaje, getDeviceElderId } from '../lib/memoria';
 import { avisarAFamilia, mensajeTranquilizador } from '../lib/aviso-familia';
 
-// Placeholder avatar hasta que tengamos los de Higgsfield
-const PANCHO_AVATAR = '👴';
-const MELI_AVATAR = '👵';
+// Imágenes reales de Pancho y Meli (están en la carpeta public)
+const PANCHO_AVATAR = '/pancho.jpg';
+const MELI_AVATAR = '/meli.jpg';
 
 export default function ElderChat() {
   const [messages, setMessages] = useState([]);
@@ -265,9 +265,9 @@ export default function ElderChat() {
       <div className="setup-screen">
         <div className="setup-card animate-slide">
           <div className="setup-avatars">
-            <span className="setup-avatar" role="img">👴</span>
+            <img className="setup-avatar-img" src="/pancho.jpg" alt="Pancho" />
             <span className="setup-ampersand">&</span>
-            <span className="setup-avatar" role="img">👵</span>
+            <img className="setup-avatar-img" src="/meli.jpg" alt="Meli" />
           </div>
           <h1 className="setup-title">Pancho&Meli</h1>
           <p className="setup-subtitle">Tu compañero/a de charlas de todos los días</p>
@@ -290,7 +290,7 @@ export default function ElderChat() {
                 className={`companion-option ${companionGender === 'male' ? 'active' : ''}`}
                 onClick={() => { setCompanionGender('male'); setCompanionName('Pancho'); }}
               >
-                <span className="companion-option-avatar">👴</span>
+                <img className="companion-option-img" src="/pancho.jpg" alt="Pancho" />
                 <span className="companion-option-name">Pancho</span>
               </button>
               <button
@@ -298,7 +298,7 @@ export default function ElderChat() {
                 className={`companion-option ${companionGender === 'female' ? 'active' : ''}`}
                 onClick={() => { setCompanionGender('female'); setCompanionName('Meli'); }}
               >
-                <span className="companion-option-avatar">👵</span>
+                <img className="companion-option-img" src="/meli.jpg" alt="Meli" />
                 <span className="companion-option-name">Meli</span>
               </button>
             </div>
@@ -317,7 +317,7 @@ export default function ElderChat() {
     <div className="chat-screen">
       {/* Header */}
       <header className="chat-header">
-        <div className="chat-header-avatar">{avatar}</div>
+        <div className="chat-header-avatar"><img src={avatar} alt={companionName} /></div>
         <div className="chat-header-info">
           <h1 className="chat-header-name">{companionName}</h1>
           <span className="chat-header-status">
@@ -396,7 +396,7 @@ export default function ElderChat() {
             className={`chat-bubble ${msg.role === 'companion' ? 'companion' : 'elder'} animate-fade`}
           >
             {msg.role === 'companion' && (
-              <div className="chat-bubble-avatar">{avatar}</div>
+              <div className="chat-bubble-avatar"><img src={avatar} alt={companionName} /></div>
             )}
             <div className="chat-bubble-content">
               <p className="chat-bubble-text">{msg.text}</p>
@@ -407,7 +407,7 @@ export default function ElderChat() {
 
         {isTyping && (
           <div className="chat-bubble companion animate-fade">
-            <div className="chat-bubble-avatar">{avatar}</div>
+            <div className="chat-bubble-avatar"><img src={avatar} alt={companionName} /></div>
             <div className="chat-bubble-content">
               <div className="typing-indicator">
                 <span></span><span></span><span></span>
