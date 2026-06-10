@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import './ElderChat.css';
 import { hablar, callar, crearReconocedorVoz, vozDisponible, precargarVoces } from '../lib/voz';
 import { obtenerOCrearAbuelo, cargarHistorial, guardarMensaje, getDeviceElderId } from '../lib/memoria';
@@ -9,6 +10,7 @@ const PANCHO_AVATAR = '/pancho.jpg';
 const MELI_AVATAR = '/meli.jpg';
 
 export default function ElderChat() {
+  const { elderId: slugParam } = useParams(); // slug del link que mandó el familiar
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -32,15 +34,40 @@ export default function ElderChat() {
   // Precargar voces del navegador al montar
   useEffect(() => { precargarVoces(); }, []);
 
-  // Al abrir: si este dispositivo ya tiene un abuelo guardado, lo reconocemos
-  // y entramos directo al chat con su historial (Pancho lo recuerda).
+  // Al abrir: si viene por link del familiar (slug) o si ya tiene sesión en el dispositivo
   useEffect(() => {
-    const idGuardado = getDeviceElderId();
-    if (!idGuardado) return; // abuelo nuevo, mostramos setup normal
-
     (async () => {
       try {
         const { supabase } = await import('../lib/supabase');
+
+        // 1. Si viene por link del familiar (slug en la URL)
+        if (slugParam && slugParam !== 'demo') {
+          const { data } = await supabase.from('elders').select('*').eq('slug', slugParam).single();
+          if (data) {
+            setElderId(data.id);
+            setElderName(data.nombre);
+            setCompanionName(data.companion_name || 'Pancho');
+            setCompanionGender(data.companion_gender || 'male');
+            // Guardar en el dispositivo para que la próxima vez entre directo
+            try { localStorage.setItem('pancho_meli_elder_id', data.id); } catch {}
+            const hist = await cargarHistorial(data.id);
+            if (hist.length > 0) {
+              setMessages(hist);
+            } else {
+              const g = (data.companion_gender || 'male') === 'male'
+                ? `¡Hola ${data.nombre}! Soy Pancho, tu compañero de charlas. ¡Qué bueno conocerte! 😄 ¿Cómo andás?`
+                : `¡Hola ${data.nombre}! Soy Meli, tu compañera de charlas. ¡Qué alegría conocerte! 😊 ¿Cómo estás?`;
+              setMessages([{ id: 1, role: 'companion', text: g, time: now() }]);
+              guardarMensaje(data.id, 'companion', g);
+            }
+            setIsSetup(true);
+            return;
+          }
+        }
+
+        // 2. Si ya tiene sesión guardada en el dispositivo
+        const idGuardado = getDeviceElderId();
+        if (!idGuardado) return;
         const { data } = await supabase.from('elders').select('*').eq('id', idGuardado).single();
         if (data) {
           // Recuperamos su configuración
