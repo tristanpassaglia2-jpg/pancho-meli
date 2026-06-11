@@ -6,9 +6,11 @@
 // ═══════════════════════════════════════════════════════
 
 import { supabase } from './supabase';
+import { crearSuscripcionTrial } from './suscripcion';
 
 // ───────────────────────────────────────────
 // Registrar un familiar nuevo (email + contraseña)
+// Al registrarse, arranca su trial de 7 días gratis
 // ───────────────────────────────────────────
 export async function registrarFamiliar(email, password, nombre) {
   try {
@@ -23,6 +25,12 @@ export async function registrarFamiliar(email, password, nombre) {
     if (error) {
       return { ok: false, mensaje: traducirError(error.message) };
     }
+
+    // Crear el trial de 7 días gratis automáticamente
+    if (data.user?.id) {
+      await crearSuscripcionTrial(data.user.id);
+    }
+
     return { ok: true, usuario: data.user, mensaje: 'registrado' };
   } catch (err) {
     return { ok: false, mensaje: 'Hubo un problema. Probá de nuevo en un momento.' };
