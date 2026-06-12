@@ -4,6 +4,7 @@ import './ElderChat.css';
 import { hablar, callar, crearReconocedorVoz, vozDisponible, precargarVoces } from '../lib/voz';
 import { obtenerOCrearAbuelo, cargarHistorial, guardarMensaje, getDeviceElderId } from '../lib/memoria';
 import { avisarAFamilia, mensajeTranquilizador } from '../lib/aviso-familia';
+import { obtenerEstadoPorElder } from '../lib/suscripcion';
 
 // Imágenes reales de Pancho y Meli (están en la carpeta public)
 const PANCHO_AVATAR = '/pancho.jpg';
@@ -21,6 +22,7 @@ export default function ElderChat() {
   const [showGames, setShowGames] = useState(false);
   const [elderId, setElderId] = useState(null); // id del abuelo en Supabase (memoria)
   const [mostrarAviso, setMostrarAviso] = useState(false); // modal de confirmación del aviso
+  const [suscripcion, setSuscripcion] = useState(null); // estado del trial / suscripción
   // ── Voz ──
   const [vozActivada, setVozActivada] = useState(true); // por defecto activada (accesibilidad)
   const [escuchando, setEscuchando] = useState(false);
@@ -48,6 +50,8 @@ export default function ElderChat() {
             setElderName(data.nombre);
             setCompanionName(data.companion_name || 'Pancho');
             setCompanionGender(data.companion_gender || 'male');
+            // Consultar estado de la suscripción (7 días gratis)
+            obtenerEstadoPorElder(data.id).then(s => setSuscripcion(s));
             // Guardar en el dispositivo para que la próxima vez entre directo
             try { localStorage.setItem('pancho_meli_elder_id', data.id); } catch {}
             const hist = await cargarHistorial(data.id);
@@ -75,6 +79,8 @@ export default function ElderChat() {
           setElderName(data.nombre);
           setCompanionName(data.companion_name || 'Pancho');
           setCompanionGender(data.companion_gender || 'male');
+          // Consultar estado de la suscripción (7 días gratis)
+          obtenerEstadoPorElder(data.id).then(s => setSuscripcion(s));
           // Cargamos el historial de charlas
           const hist = await cargarHistorial(data.id);
           if (hist.length > 0) {
@@ -179,6 +185,8 @@ export default function ElderChat() {
   const handleSendText = async (rawText) => {
     const text = (rawText || '').trim();
     if (!text || isTyping) return;
+    // Si la suscripción venció, no dejamos enviar
+    if (suscripcion && !suscripcion.activa) return;
 
     const userMsg = {
       id: Date.now(),
@@ -375,6 +383,28 @@ export default function ElderChat() {
           🆘
         </button>
       </header>
+
+      {/* Banner de trial (solo si quedan pocos días) */}
+      {suscripcion && suscripcion.estado === 'trial' && suscripcion.diasRestantes <= 3 && suscripcion.diasRestantes > 0 && (
+        <div className="trial-banner">
+          ⏰ Te quedan {suscripcion.diasRestantes} {suscripcion.diasRestantes === 1 ? 'día' : 'días'} de prueba gratis
+        </div>
+      )}
+
+      {/* Pantalla de suscripción vencida (bloquea el chat) */}
+      {suscripcion && suscripcion.estado === 'vencida' && (
+        <div className="trial-vencido-overlay">
+          <div className="trial-vencido-card">
+            <div className="trial-vencido-emoji">💛</div>
+            <h2 className="trial-vencido-titulo">Tu prueba terminó</h2>
+            <p className="trial-vencido-texto">
+              Esperamos que hayas disfrutado las charlas con {companionName}.
+              Para seguir, contale a tu familia que active la suscripción.
+            </p>
+            <p className="trial-vencido-precio">USD $8.99 / mes</p>
+          </div>
+        </div>
+      )}
 
       {/* Modal de aviso a la familia */}
       {mostrarAviso && (
