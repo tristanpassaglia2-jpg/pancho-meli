@@ -270,6 +270,36 @@ export default function ElderChat() {
     }
   };
 
+  // Cambiar entre Pancho y Meli
+  const cambiarCompanero = async () => {
+    const nuevoGender = companionGender === 'male' ? 'female' : 'male';
+    const nuevoName = nuevoGender === 'male' ? 'Pancho' : 'Meli';
+    const viejoName = companionName;
+
+    setCompanionGender(nuevoGender);
+    setCompanionName(nuevoName);
+
+    // Actualizar en Supabase
+    if (elderId) {
+      try {
+        const { supabase } = await import('../lib/supabase');
+        await supabase.from('elders').update({
+          companion_name: nuevoName,
+          companion_gender: nuevoGender
+        }).eq('id', elderId);
+      } catch {}
+    }
+
+    // Mensaje de transición cálido
+    const transicion = nuevoGender === 'male'
+      ? `¡Hola ${elderName}! Soy Pancho. Meli me dijo que estaban charlando, así que acá me sumo yo. ¿Cómo andás?`
+      : `¡Hola ${elderName}! Soy Meli. Pancho me contó que estaban de charla, así que vine a hacerte compañía. ¿Cómo estás?`;
+
+    const msg = { id: Date.now(), role: 'companion', text: transicion, time: now() };
+    setMessages(prev => [...prev, msg]);
+    if (elderId) guardarMensaje(elderId, 'companion', transicion);
+  };
+
   // Juegos disponibles
   const games = [
     { id: 'trivia', emoji: '🌍', name: 'Trivia' },
@@ -374,6 +404,13 @@ export default function ElderChat() {
           title="Juegos"
         >
           🎮
+        </button>
+        <button
+          className="chat-header-games"
+          onClick={cambiarCompanero}
+          title={companionGender === 'male' ? 'Charlar con Meli' : 'Charlar con Pancho'}
+        >
+          🔄
         </button>
         <button
           className="chat-header-sos"
