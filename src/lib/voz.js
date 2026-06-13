@@ -1,35 +1,53 @@
 // ═══════════════════════════════════════════════════════
-// PANCHO & MELI — MÓDULO DE VOZ
+// PANCHO & MELI — MÓDULO DE VOZ (versión robusta)
 // Usa la Web Speech API (gratis, integrada en el navegador).
 //   - Texto a voz: Pancho/Meli leen sus mensajes en voz alta
 //   - Voz a texto: el abuelo habla en vez de tipear
-// Todo opcional y controlable por el abuelo (silenciar / activar).
 // ═══════════════════════════════════════════════════════
 
-// ─────────────────────────────────────────────────────────
-// 1. TEXTO A VOZ (Pancho/Meli hablan)
-// ─────────────────────────────────────────────────────────
+// Cache de voces (se cargan una sola vez)
+let vocesCache = [];
+let vocesListas = false;
 
-// Elige la MEJOR voz en español disponible en el dispositivo.
-// Prioriza voces de calidad (Google/Microsoft/Apple) y según género.
+// ─────────────────────────────────────────────────────────
+// 1. PRECARGAR VOCES (llamar al inicio de la app)
+// ─────────────────────────────────────────────────────────
+export function precargarVoces(callback) {
+  if (!('speechSynthesis' in window)) { callback?.(); return; }
+  
+  const cargar = () => {
+    vocesCache = window.speechSynthesis.getVoices();
+    vocesListas = vocesCache.length > 0;
+    callback?.(vocesCache);
+  };
+  
+  cargar();
+  if (!vocesListas) {
+    window.speechSynthesis.onvoiceschanged = cargar;
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// 2. ELEGIR MEJOR VOZ EN ESPAÑOL
+// ─────────────────────────────────────────────────────────
 export function elegirMejorVoz(genero = 'male') {
   if (!('speechSynthesis' in window)) return null;
-  const voces = window.speechSynthesis.getVoices();
-  if (!voces.length) return null;
+  
+  // Si no hay voces en cache, intentar cargar
+  if (!vocesListas) {
+    vocesCache = window.speechSynthesis.getVoices();
+    vocesListas = vocesCache.length > 0;
+  }
+  if (!vocesCache.length) return null;
 
-  // Solo voces en español
-  const enEspanol = voces.filter(v => v.lang.toLowerCase().startsWith('es'));
-  if (!enEspanol.length) return voces[0];
+  const enEspanol = vocesCache.filter(v => v.lang.toLowerCase().startsWith('es'));
+  if (!enEspanol.length) return vocesCache[0];
 
-  // Preferencia regional: español de Latinoamérica primero
   const prioridadLang = ['es-ar', 'es-mx', 'es-us', 'es-co', 'es-cl', 'es-419', 'es-es', 'es'];
-
-  // Nombres típicos de voces de calidad por género (heurística)
   const pistasFemenino = ['mónica', 'monica', 'paulina', 'female', 'mujer', 'helena', 'laura', 'sabina', 'elena'];
   const pistasMasculino = ['jorge', 'diego', 'male', 'hombre', 'carlos', 'enrique', 'pablo'];
   const pistas = genero === 'male' ? pistasMasculino : pistasFemenino;
 
-  // 1) Buscar voz que coincida en idioma prioritario Y género
   for (const lang of prioridadLang) {
     const match = enEspanol.find(v =>
       v.lang.toLowerCase().startsWith(lang) &&
@@ -38,13 +56,11 @@ export function elegirMejorVoz(genero = 'male') {
     if (match) return match;
   }
 
-  // 2) Buscar voz "premium" (Google/Microsoft suelen sonar mejor) en español
   const premium = enEspanol.find(v =>
     /google|microsoft|natural|premium|enhanced/i.test(v.name)
   );
   if (premium) return premium;
 
-  // 3) Cualquier voz en español del idioma prioritario
   for (const lang of prioridadLang) {
     const match = enEspanol.find(v => v.lang.toLowerCase().startsWith(lang));
     if (match) return match;
@@ -53,7 +69,11 @@ export function elegirMejorVoz(genero = 'male') {
   return enEspanol[0];
 }
 
-// Lee un texto en voz alta con la voz del compañero
+// ─────────────────────────────────────────────────────────
+// 3. TEXTO A VOZ (Pancho/Meli hablan)
+// Versión robusta: maneja el bug de Chrome donde cancel()
+// antes de speak() a veces causa silencio.
+// ─────────────────────────────────────────────────────────
 export function hablar(texto, genero = 'male', { onStart, onEnd } = {}) {
   if (!('speechSynthesis' in window)) {
     console.warn('Este navegador no soporta voz');
@@ -61,35 +81,61 @@ export function hablar(texto, genero = 'male', { onStart, onEnd } = {}) {
     return;
   }
 
-  // Cancelar cualquier lectura en curso (no encimar voces)
+  // Cancelar cualquier lectura en curso
   window.speechSynthesis.cancel();
 
-  // Limpiar el texto: sacar emojis para que no los "lea"
+  // Limpiar el texto: sacar emojis y links para que no los "lea"
   const limpio = texto
-    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+    .replace(/https?:\/\/[^\s]+/g, '')       // sacar links
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')  // sacar emojis
+    .replace(/\*\*/g, '')                     // sacar negritas markdown
     .replace(/\s+/g, ' ')
     .trim();
   if (!limpio) { onEnd?.(); return; }
 
-  const utter = new SpeechSynthesisUtterance(limpio);
-  const voz = elegirMejorVoz(genero);
-  if (voz) {
-    utter.voice = voz;
-    utter.lang = voz.lang;
-  } else {
-    utter.lang = 'es-AR';
-  }
+  // Workaround para Chrome: pequeña pausa después del cancel()
+  // para evitar el bug de silencio
+  setTimeout(() => {
+    const utter = new SpeechSynthesisUtterance(limpio);
+    const voz = elegirMejorVoz(genero);
+    if (voz) {
+      utter.voice = voz;
+      utter.lang = voz.lang;
+    } else {
+      utter.lang = 'es-AR';
+    }
 
-  // Ajustes para que suene cálido y entendible para adultos mayores
-  utter.rate = 0.92;   // un poco más lento = más claro
-  utter.pitch = genero === 'male' ? 0.95 : 1.05;
-  utter.volume = 1.0;
+    // Ajustes para que suene cálido y entendible para adultos mayores
+    utter.rate = 0.88;    // un poco más lento = más claro para el abuelo
+    utter.pitch = genero === 'male' ? 0.92 : 1.05;
+    utter.volume = 1.0;
 
-  utter.onstart = () => onStart?.();
-  utter.onend = () => onEnd?.();
-  utter.onerror = () => onEnd?.();
+    utter.onstart = () => onStart?.();
+    utter.onend = () => onEnd?.();
+    utter.onerror = (e) => {
+      console.warn('Error de voz:', e);
+      onEnd?.();
+    };
 
-  window.speechSynthesis.speak(utter);
+    // Workaround Chrome: si está "pausado" (bug conocido), resumir
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+
+    window.speechSynthesis.speak(utter);
+    
+    // Workaround Chrome: en textos largos, Chrome se "duerme" después de ~15 seg.
+    // Hacemos un resume() periódico para evitarlo.
+    const keepAlive = setInterval(() => {
+      if (!window.speechSynthesis.speaking) {
+        clearInterval(keepAlive);
+        return;
+      }
+      window.speechSynthesis.pause();
+      window.speechSynthesis.resume();
+    }, 10000);
+
+  }, 100); // 100ms de pausa post-cancel = fix del bug de silencio
 }
 
 // Detener la lectura inmediatamente
@@ -98,9 +144,8 @@ export function callar() {
 }
 
 // ─────────────────────────────────────────────────────────
-// 2. VOZ A TEXTO (el abuelo habla)
+// 4. VOZ A TEXTO (el abuelo habla)
 // ─────────────────────────────────────────────────────────
-
 export function crearReconocedorVoz({ onResult, onError, onEnd } = {}) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
@@ -110,8 +155,8 @@ export function crearReconocedorVoz({ onResult, onError, onEnd } = {}) {
 
   const recognition = new SpeechRecognition();
   recognition.lang = 'es-AR';
-  recognition.continuous = false;       // una frase por vez (más simple para el abuelo)
-  recognition.interimResults = false;   // solo el resultado final, sin parpadeos
+  recognition.continuous = false;
+  recognition.interimResults = false;
   recognition.maxAlternatives = 1;
 
   recognition.onresult = (event) => {
@@ -125,22 +170,10 @@ export function crearReconocedorVoz({ onResult, onError, onEnd } = {}) {
 }
 
 // ─────────────────────────────────────────────────────────
-// 3. DISPONIBILIDAD (para mostrar/ocultar botones)
+// 5. DISPONIBILIDAD (para mostrar/ocultar botones)
 // ─────────────────────────────────────────────────────────
-
 export const vozDisponible = {
   hablar: typeof window !== 'undefined' && 'speechSynthesis' in window,
   escuchar: typeof window !== 'undefined' &&
     !!(window.SpeechRecognition || window.webkitSpeechRecognition)
 };
-
-// Carga las voces (en algunos navegadores tardan en estar listas)
-export function precargarVoces(callback) {
-  if (!('speechSynthesis' in window)) { callback?.(); return; }
-  let voces = window.speechSynthesis.getVoices();
-  if (voces.length) { callback?.(voces); return; }
-  window.speechSynthesis.onvoiceschanged = () => {
-    voces = window.speechSynthesis.getVoices();
-    callback?.(voces);
-  };
-}
