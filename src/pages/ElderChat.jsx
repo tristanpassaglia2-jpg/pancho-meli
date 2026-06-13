@@ -131,20 +131,52 @@ export default function ElderChat() {
     }
     callar(); // si Pancho está hablando, que se calle para escuchar
     setHablando(false);
+
+    let yaRecibioResultado = false;
+    let inicioTimestamp = Date.now();
+
     const rec = crearReconocedorVoz({
       onResult: (texto) => {
+        yaRecibioResultado = true;
         setInput(texto);
         setEscuchando(false);
         // Enviar automáticamente lo que dijo
         setTimeout(() => handleSendText(texto), 300);
       },
-      onError: () => setEscuchando(false),
-      onEnd: () => setEscuchando(false)
+      onError: (err) => {
+        console.warn('Error de micrófono:', err);
+        // Si el error es por permisos, avisar al abuelo
+        if (err === 'not-allowed') {
+          alert('Para usar el micrófono, permití el acceso cuando el navegador te lo pida.');
+        }
+        setEscuchando(false);
+      },
+      onEnd: () => {
+        // Chrome a veces cierra el reconocimiento muy rápido sin resultado.
+        // Si pasaron menos de 2 segundos y no hubo resultado, reintentar una vez.
+        if (!yaRecibioResultado && (Date.now() - inicioTimestamp) < 2000 && reconocedorRef.current) {
+          try {
+            reconocedorRef.current.start();
+            return; // no apagar el indicador, seguimos escuchando
+          } catch {
+            // si falla el reinicio, dejamos de grabar
+          }
+        }
+        setEscuchando(false);
+      }
     });
+
     if (rec) {
       reconocedorRef.current = rec;
       setEscuchando(true);
-      rec.start();
+      try {
+        rec.start();
+      } catch (err) {
+        console.warn('No se pudo iniciar el micrófono:', err);
+        setEscuchando(false);
+      }
+    } else {
+      alert('Tu navegador no soporta el micrófono. Probá con Chrome.');
     }
   };
 
