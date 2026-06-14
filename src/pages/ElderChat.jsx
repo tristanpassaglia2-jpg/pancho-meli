@@ -468,9 +468,17 @@ export default function ElderChat() {
             <h2 className="trial-vencido-titulo">Tu prueba terminó</h2>
             <p className="trial-vencido-texto">
               Esperamos que hayas disfrutado las charlas con {companionName}.
-              Para seguir, contale a tu familia que active la suscripción.
+              Para seguir charlando, pedile a tu familiar que entre a la app
+              y active la suscripción.
             </p>
-            <p className="trial-vencido-precio">USD $8.99 / mes</p>
+            <p className="trial-vencido-precio">ARS $13.500 / mes</p>
+            <a href="/suscribir" style={{
+              display: 'inline-block', marginTop: '1rem', padding: '0.9rem 1.8rem',
+              background: '#075E54', color: '#fff', borderRadius: 14,
+              fontSize: '1.1rem', fontWeight: 700, textDecoration: 'none'
+            }}>
+              Activar suscripción
+            </a>
           </div>
         </div>
       )}
