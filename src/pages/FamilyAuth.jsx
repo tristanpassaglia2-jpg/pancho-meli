@@ -11,6 +11,7 @@ export default function FamilyAuth() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
   const [exito, setExito] = useState('');
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
 
   const handleSubmit = async () => {
     setError('');
@@ -26,6 +27,10 @@ export default function FamilyAuth() {
     }
     if (password.length < 6) {
       setError('La contraseña tiene que tener al menos 6 caracteres.');
+      return;
+    }
+    if (modo === 'registro' && !aceptaTerminos) {
+      setError('Tenés que aceptar los Términos y la Política de Privacidad para crear tu cuenta.');
       return;
     }
 
@@ -120,6 +125,23 @@ export default function FamilyAuth() {
         {error && <div style={S.error}>{error}</div>}
         {exito && <div style={S.exito}>{exito}</div>}
 
+        {modo === 'registro' && (
+          <label style={S.checkboxLabel}>
+            <input
+              type="checkbox"
+              checked={aceptaTerminos}
+              onChange={(e) => setAceptaTerminos(e.target.checked)}
+              style={S.checkbox}
+            />
+            <span style={S.checkboxText}>
+              Acepto los{' '}
+              <a href="/terminos" target="_blank" style={S.link}>Términos y Condiciones</a>
+              {' '}y la{' '}
+              <a href="/privacidad" target="_blank" style={S.link}>Política de Privacidad</a>
+            </span>
+          </label>
+        )}
+
         <button style={S.botonPrincipal} onClick={handleSubmit} disabled={cargando}>
           {cargando ? 'Un momento...' : modo === 'registro' ? 'Crear mi cuenta' : 'Entrar'}
         </button>
@@ -169,5 +191,9 @@ const S = {
     borderRadius: 14, fontSize: '1.2rem', fontWeight: 700, cursor: 'pointer',
     fontFamily: "'Nunito', sans-serif", marginTop: 4
   },
-  nota: { fontSize: '0.82rem', color: '#999', marginTop: 16, lineHeight: 1.5 }
+  nota: { fontSize: '0.82rem', color: '#999', marginTop: 16, lineHeight: 1.5 },
+  checkboxLabel: { display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 14, textAlign: 'left' },
+  checkbox: { marginTop: 3, width: 18, height: 18, flexShrink: 0 },
+  checkboxText: { fontSize: '0.85rem', color: '#555', lineHeight: 1.5 },
+  link: { color: '#075E54', fontWeight: 600 }
 };
