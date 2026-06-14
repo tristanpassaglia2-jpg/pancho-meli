@@ -125,12 +125,12 @@
   margin: 0 auto;
 }
 
-/* Header — estilo WhatsApp */
+/* Header — estilo WhatsApp, compacto para celular */
 .chat-header {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
-  padding: 0.7rem 1rem;
+  gap: 0.4rem;
+  padding: 0.5rem 0.6rem;
   background: #075E54;
   color: #fff;
   box-shadow: 0 1px 3px rgba(0,0,0,0.2);
@@ -138,11 +138,11 @@
 }
 
 .chat-header-avatar {
-  font-size: 1.8rem;
+  font-size: 1.5rem;
   background: #ffffff;
   border-radius: var(--radius-full);
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -176,26 +176,26 @@
   50% { transform: scale(1.08); }
 }
 
-.chat-header-info { flex: 1; }
+.chat-header-info { flex: 1; min-width: 0; }
 
 .chat-header-name {
-  font-size: var(--font-size-lg);
+  font-size: 1.1rem;
   font-weight: 800;
   line-height: 1.2;
 }
 
 .chat-header-status {
-  font-size: var(--font-size-xs);
+  font-size: 0.7rem;
   opacity: 0.85;
   font-weight: 500;
 }
 
 .chat-header-games {
-  font-size: 1.8rem;
+  font-size: 1.3rem;
   background: rgba(255,255,255,0.15);
-  border: 2px solid rgba(255,255,255,0.3);
+  border: 1px solid rgba(255,255,255,0.3);
   border-radius: var(--radius-sm);
-  padding: 0.4rem 0.6rem;
+  padding: 0.3rem 0.4rem;
   cursor: pointer;
   transition: all 0.2s;
   line-height: 1;
@@ -222,15 +222,14 @@
   margin-bottom: 0.5rem;
 }
 .chat-header-sos {
-  font-size: 1.8rem;
+  font-size: 1.3rem;
   background: rgba(255,255,255,0.2);
-  border: 2px solid rgba(255,255,255,0.45);
+  border: 1px solid rgba(255,255,255,0.45);
   border-radius: var(--radius-sm);
-  padding: 0.4rem 0.6rem;
+  padding: 0.3rem 0.4rem;
   cursor: pointer;
   transition: all 0.2s;
   line-height: 1;
-  margin-left: 0.5rem;
 }
 
 .chat-header-sos:hover {
@@ -314,15 +313,14 @@
 
 /* Botón de voz (silenciar/activar) */
 .chat-header-voice {
-  font-size: 1.8rem;
+  font-size: 1.3rem;
   background: rgba(255,255,255,0.15);
-  border: 2px solid rgba(255,255,255,0.3);
+  border: 1px solid rgba(255,255,255,0.3);
   border-radius: var(--radius-sm);
-  padding: 0.4rem 0.6rem;
+  padding: 0.3rem 0.4rem;
   cursor: pointer;
   transition: all 0.2s;
   line-height: 1;
-  margin-right: 0.5rem;
 }
 
 .chat-header-voice:hover {
