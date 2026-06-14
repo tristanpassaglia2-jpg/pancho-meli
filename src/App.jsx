@@ -4,6 +4,7 @@ import ElderChat from './pages/ElderChat';
 import FamilySetup from './pages/FamilySetup';
 import FamilyDashboard from './pages/FamilyDashboard';
 import FamilyAuth from './pages/FamilyAuth';
+import Suscribir from './pages/Suscribir';
 import Landing from './pages/Landing';
 
 export default function App() {
@@ -12,6 +13,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/entrar" element={<FamilyAuth />} />
+        <Route path="/suscribir" element={<Suscribir />} />
         <Route path="/setup" element={<FamilySetup />} />
         <Route path="/configurar" element={<FamilySetup />} />
         <Route path="/chat/:elderId" element={<ElderChat />} />
