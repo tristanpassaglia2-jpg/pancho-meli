@@ -86,7 +86,7 @@ export default function Landing() {
       <div style={S.section}>
         <h2 style={S.sectionTitle}>Simple y accesible</h2>
         <div style={S.priceCard}>
-          <p style={S.priceAmount}>USD $8.99<span style={S.pricePer}>/mes</span></p>
+          <p style={S.priceAmount}>ARS $13.500<span style={S.pricePer}>/mes</span></p>
           <p style={S.priceNote}>Primeros 7 días gratis. Cancelá cuando quieras.</p>
           <p style={S.priceDetail}>Charlas ilimitadas · Juegos · Música · Botón de emergencia</p>
           <Link to="/entrar" style={S.btnPrimary}>
@@ -113,19 +113,19 @@ const S = {
   },
   hero: {
     textAlign: 'center',
-    padding: '3.5rem 1.5rem 2.5rem',
+    padding: '2.5rem 1.2rem 2rem',
     background: 'linear-gradient(170deg, #075E54 0%, #0a7a6d 100%)',
     color: '#fff'
   },
   avatars: {
-    display: 'flex', justifyContent: 'center', gap: '1rem', marginBottom: '1.2rem'
+    display: 'flex', justifyContent: 'center', gap: '0.8rem', marginBottom: '1rem'
   },
   avatar: {
-    width: 90, height: 90, borderRadius: '50%', objectFit: 'cover',
+    width: 75, height: 75, borderRadius: '50%', objectFit: 'cover',
     border: '3px solid rgba(255,255,255,0.6)', boxShadow: '0 4px 15px rgba(0,0,0,0.25)'
   },
   title: {
-    fontSize: '2.6rem', fontWeight: 800, margin: '0 0 0.3rem', letterSpacing: '-0.5px'
+    fontSize: '2.2rem', fontWeight: 800, margin: '0 0 0.3rem', letterSpacing: '-0.5px'
   },
   tagline: {
     fontSize: '1.15rem', opacity: 0.92, marginBottom: '1rem', fontWeight: 400
@@ -135,16 +135,16 @@ const S = {
     lineHeight: 1.6
   },
   btnPrimary: {
-    display: 'inline-block', padding: '1rem 2.2rem', background: '#fff',
-    color: '#075E54', borderRadius: 14, fontSize: '1.15rem', fontWeight: 700,
+    display: 'block', padding: '1rem 1.5rem', background: '#fff',
+    color: '#075E54', borderRadius: 14, fontSize: '1.1rem', fontWeight: 700,
     textDecoration: 'none', boxShadow: '0 4px 15px rgba(0,0,0,0.15)',
-    margin: '0 0.5rem 0.8rem'
+    margin: '0 auto 0.8rem', maxWidth: 320, textAlign: 'center'
   },
   btnSecondary: {
-    display: 'inline-block', padding: '0.85rem 2rem',
+    display: 'block', padding: '0.85rem 1.5rem',
     background: 'rgba(255,255,255,0.15)', color: '#fff', border: '2px solid rgba(255,255,255,0.4)',
     borderRadius: 14, fontSize: '1rem', fontWeight: 600,
-    textDecoration: 'none', margin: '0 0.5rem 0.8rem'
+    textDecoration: 'none', margin: '0 auto 0.8rem', maxWidth: 320, textAlign: 'center'
   },
   trial: {
     fontSize: '0.85rem', opacity: 0.7, marginTop: '0.8rem'
@@ -157,8 +157,8 @@ const S = {
     marginBottom: '1.5rem'
   },
   features: {
-    display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '1.2rem'
+    display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+    gap: '1rem'
   },
   feature: {
     background: '#fff', borderRadius: 16, padding: '1.3rem',
