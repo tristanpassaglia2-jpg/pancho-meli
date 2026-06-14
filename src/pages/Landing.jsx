@@ -99,6 +99,10 @@ export default function Landing() {
       <footer style={S.footer}>
         <p style={S.footerText}>Pancho&Meli · Compañero IA para adultos mayores</p>
         <p style={S.footerText}>Hecho con 💛 en Argentina · VIGIA Apps</p>
+        <p style={S.footerText}>
+          <a href="/privacidad" style={{color:'#999', marginRight: 16}}>Política de Privacidad</a>
+          <a href="/terminos" style={{color:'#999'}}>Términos y Condiciones</a>
+        </p>
       </footer>
     </div>
   );
