@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════
-// PANCHO & MELI — MÓDULO DE VOZ (versión robusta)
+// PANCHO & MELI — MÓDULO DE VOZ (versión robusta + Safari iOS)
 // Usa la Web Speech API (gratis, integrada en el navegador).
 //   - Texto a voz: Pancho/Meli leen sus mensajes en voz alta
 //   - Voz a texto: el abuelo habla en vez de tipear
@@ -8,19 +8,43 @@
 // Cache de voces (se cargan una sola vez)
 let vocesCache = [];
 let vocesListas = false;
+let audioDesbloqueado = false;
+
+// Detectar si es Safari en iOS
+const esSafariiOS = /iP(hone|od|ad)/.test(navigator.userAgent) ||
+  (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
+
+// ─────────────────────────────────────────────────────────
+// 0. DESBLOQUEAR AUDIO EN SAFARI iOS
+// Llamar UNA VEZ en el primer toque del usuario.
+// ─────────────────────────────────────────────────────────
+export function desbloquearAudioiOS() {
+  if (audioDesbloqueado) return;
+  if (!('speechSynthesis' in window)) return;
+
+  const silencio = new SpeechSynthesisUtterance(' ');
+  silencio.volume = 0;
+  silencio.rate = 1;
+  silencio.pitch = 1;
+  silencio.lang = 'es-AR';
+  window.speechSynthesis.speak(silencio);
+
+  audioDesbloqueado = true;
+  console.log('Audio desbloqueado para Safari iOS');
+}
 
 // ─────────────────────────────────────────────────────────
 // 1. PRECARGAR VOCES (llamar al inicio de la app)
 // ─────────────────────────────────────────────────────────
 export function precargarVoces(callback) {
   if (!('speechSynthesis' in window)) { callback?.(); return; }
-  
+
   const cargar = () => {
     vocesCache = window.speechSynthesis.getVoices();
     vocesListas = vocesCache.length > 0;
     callback?.(vocesCache);
   };
-  
+
   cargar();
   if (!vocesListas) {
     window.speechSynthesis.onvoiceschanged = cargar;
@@ -32,8 +56,7 @@ export function precargarVoces(callback) {
 // ─────────────────────────────────────────────────────────
 export function elegirMejorVoz(genero = 'male') {
   if (!('speechSynthesis' in window)) return null;
-  
-  // Si no hay voces en cache, intentar cargar
+
   if (!vocesListas) {
     vocesCache = window.speechSynthesis.getVoices();
     vocesListas = vocesCache.length > 0;
@@ -71,8 +94,6 @@ export function elegirMejorVoz(genero = 'male') {
 
 // ─────────────────────────────────────────────────────────
 // 3. TEXTO A VOZ (Pancho/Meli hablan)
-// Versión robusta: maneja el bug de Chrome donde cancel()
-// antes de speak() a veces causa silencio.
 // ─────────────────────────────────────────────────────────
 export function hablar(texto, genero = 'male', { onStart, onEnd } = {}) {
   if (!('speechSynthesis' in window)) {
@@ -81,64 +102,91 @@ export function hablar(texto, genero = 'male', { onStart, onEnd } = {}) {
     return;
   }
 
-  // Cancelar cualquier lectura en curso
   window.speechSynthesis.cancel();
 
-  // Limpiar el texto: sacar emojis y links para que no los "lea"
   const limpio = texto
-    .replace(/https?:\/\/[^\s]+/g, '')       // sacar links
-    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')  // sacar emojis
-    .replace(/\*\*/g, '')                     // sacar negritas markdown
+    .replace(/https?:\/\/[^\s]+/g, '')
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+    .replace(/\*\*/g, '')
     .replace(/\s+/g, ' ')
     .trim();
   if (!limpio) { onEnd?.(); return; }
 
-  // Workaround para Chrome: pequeña pausa después del cancel()
-  // para evitar el bug de silencio
-  setTimeout(() => {
-    const utter = new SpeechSynthesisUtterance(limpio);
-    const voz = elegirMejorVoz(genero);
-    if (voz) {
-      utter.voice = voz;
-      utter.lang = voz.lang;
-    } else {
-      utter.lang = 'es-AR';
-    }
+  const ejecutarHabla = () => {
+    // Safari iOS: dividir en oraciones cortas (Safari corta en ~200 chars)
+    const fragmentos = esSafariiOS
+      ? limpio.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [limpio]
+      : [limpio];
 
-    // Ajustes para que suene cálido y entendible para adultos mayores
-    utter.rate = 0.88;    // un poco más lento = más claro para el abuelo
-    utter.pitch = genero === 'male' ? 0.92 : 1.05;
-    utter.volume = 1.0;
+    let indice = 0;
 
-    utter.onstart = () => onStart?.();
-    utter.onend = () => onEnd?.();
-    utter.onerror = (e) => {
-      console.warn('Error de voz:', e);
-      onEnd?.();
-    };
-
-    // Workaround Chrome: si está "pausado" (bug conocido), resumir
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-    }
-
-    window.speechSynthesis.speak(utter);
-    
-    // Workaround Chrome: en textos largos, Chrome se "duerme" después de ~15 seg.
-    // Hacemos un resume() periódico para evitarlo.
-    const keepAlive = setInterval(() => {
-      if (!window.speechSynthesis.speaking) {
-        clearInterval(keepAlive);
+    const hablarFragmento = () => {
+      if (indice >= fragmentos.length) {
+        onEnd?.();
         return;
       }
-      window.speechSynthesis.pause();
-      window.speechSynthesis.resume();
-    }, 10000);
 
-  }, 100); // 100ms de pausa post-cancel = fix del bug de silencio
+      const frag = fragmentos[indice].trim();
+      if (!frag) { indice++; hablarFragmento(); return; }
+
+      const utter = new SpeechSynthesisUtterance(frag);
+      const voz = elegirMejorVoz(genero);
+      if (voz) {
+        utter.voice = voz;
+        utter.lang = voz.lang;
+      } else {
+        utter.lang = 'es-AR';
+      }
+
+      utter.rate = 0.88;
+      utter.pitch = genero === 'male' ? 0.92 : 1.05;
+      utter.volume = 1.0;
+
+      utter.onstart = () => {
+        if (indice === 0) onStart?.();
+      };
+
+      utter.onend = () => {
+        indice++;
+        hablarFragmento();
+      };
+
+      utter.onerror = (e) => {
+        console.warn('Error de voz:', e);
+        indice++;
+        hablarFragmento();
+      };
+
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+
+      window.speechSynthesis.speak(utter);
+    };
+
+    hablarFragmento();
+
+    // Workaround Chrome: resume periódico (NO en Safari)
+    if (!esSafariiOS) {
+      const keepAlive = setInterval(() => {
+        if (!window.speechSynthesis.speaking) {
+          clearInterval(keepAlive);
+          return;
+        }
+        window.speechSynthesis.pause();
+        window.speechSynthesis.resume();
+      }, 10000);
+    }
+  };
+
+  // Chrome necesita pausa post-cancel, Safari NO
+  if (esSafariiOS) {
+    ejecutarHabla();
+  } else {
+    setTimeout(ejecutarHabla, 100);
+  }
 }
 
-// Detener la lectura inmediatamente
 export function callar() {
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 }
@@ -170,7 +218,7 @@ export function crearReconocedorVoz({ onResult, onError, onEnd } = {}) {
 }
 
 // ─────────────────────────────────────────────────────────
-// 5. DISPONIBILIDAD (para mostrar/ocultar botones)
+// 5. DISPONIBILIDAD
 // ─────────────────────────────────────────────────────────
 export const vozDisponible = {
   hablar: typeof window !== 'undefined' && 'speechSynthesis' in window,
