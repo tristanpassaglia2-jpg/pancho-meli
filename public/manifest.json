@@ -1,0 +1,32 @@
+{
+  "name": "Pancho&Meli — Compañero de charlas",
+  "short_name": "Pancho&Meli",
+  "description": "Tu compañero de charlas de todos los días. Compañía, juegos y charla para adultos mayores.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#8B5E3C",
+  "background_color": "#ECE5DD",
+  "lang": "es",
+  "categories": ["health", "lifestyle", "social"],
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/maskable-icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
