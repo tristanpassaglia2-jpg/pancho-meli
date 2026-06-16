@@ -60,8 +60,9 @@ export default function Landing() {
             <img src="/meli.jpg" alt="Meli" />
             <div><div className="pm-nm">Meli</div><div className="pm-st">en línea</div></div>
           </div>
-          <div className="pm-bubble pm-in">Hoy hice torta de manzana, Don Carlos. ¿Usted de joven cocinaba?</div>
-          <div className="pm-bubble pm-out">Uy, ni un huevo sabía freír 😅</div>
+          <div className="pm-bubble pm-in">¿Va a ver los partidos de Argentina esta semana, Don Carlos?</div>
+          <div className="pm-bubble pm-out">Uy, ni loco me los pierdo. Ando ansioso 😄</div>
+          
           <div className="pm-bubble pm-in pm-typing"><span /><span /><span /></div>
         </div>
 
