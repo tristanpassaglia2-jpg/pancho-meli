@@ -132,7 +132,7 @@ export default function Landing() {
       {/* ───────── PRECIO ───────── */}
       <section className="pm-sec pm-sec-cream">
         <div className="pm-kicker">Simple y accesible</div>
-        <h2 className="pm-serif pm-h2">Un café por mes</h2>
+        <h2 className="pm-serif pm-h2">Un compa, todos los días</h2>
         <div className="pm-price">
           <div><span className="pm-amt pm-serif">$13.500</span><span className="pm-per"> /mes</span></div>
           <span className="pm-free">Primeros 7 días gratis</span>
