@@ -110,7 +110,7 @@ export default function Landing() {
         <div className="pm-kicker">En 2 minutos</div>
         <h2 className="pm-serif pm-h2">Cómo empezar</h2>
         <div className="pm-step"><div className="pm-n pm-serif">1</div><div><div className="pm-sh">Te registrás vos</div><div className="pm-sp">Como familiar, en dos minutos. Sin tarjeta para empezar.</div></div></div>
-        <div className="pm-step"><div className="pm-n pm-serif">2</div><div><div className="pm-sh">Configurás a tu ser querido</div><div className="pm-sp">Su nombre, sus gustos y si prefiere a Pancho o a Meli.</div></div></div>
+        <div className="pm-step"><div className="pm-n pm-serif">2</div><div><div className="pm-sh">Configurás a tu ser querido</div><div className="pm-sp">Su nombre y sus gustos. Después puede charlar con Pancho y con Meli, y cambiar cuando quiera.</div></div></div>
         <div className="pm-step"><div className="pm-n pm-serif">3</div><div><div className="pm-sh">Le pasás el link</div><div className="pm-sp">Por WhatsApp. Lo abre y ya tiene compañía, sin complicaciones.</div></div></div>
         <div className="pm-step-note">¿El abuelo se anima solo? <b>También puede registrarse él mismo</b> y probarlo sin ayuda de nadie.</div>
       </section>
