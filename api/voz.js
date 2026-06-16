@@ -55,9 +55,9 @@ export default async function handler(req, res) {
           },
           audioConfig: {
             audioEncoding: 'MP3',
-            // Un poco más lento y cálido para adultos mayores
-            speakingRate: 0.92,
-            pitch: 0.0
+            // Más despiertos y animados, sin perder calidez
+            speakingRate: 1.0,
+            pitch: 1.5
           }
         })
       }
