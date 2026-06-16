@@ -32,8 +32,13 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Texto vacío después de limpiar' });
     }
 
-    // Elegir voz según el personaje
-    const voiceName = genero === 'female' ? VOZ_MELI : VOZ_PANCHO;
+    // Elegir voz y ajustes de tono según el personaje.
+    // Pancho: voz grave, un toque de energía.
+    // Meli: voz adulta y cálida (pitch bajo para que NO suene infantil/aguda).
+    const esMeli = genero === 'female';
+    const voiceName = esMeli ? VOZ_MELI : VOZ_PANCHO;
+    const speakingRate = esMeli ? 1.0 : 1.0;
+    const pitch = esMeli ? -2.0 : 1.5; // Meli más grave (adulta), Pancho con energía
 
     const apiKey = process.env.GOOGLE_TTS_API_KEY;
     if (!apiKey) {
@@ -55,9 +60,9 @@ export default async function handler(req, res) {
           },
           audioConfig: {
             audioEncoding: 'MP3',
-            // Más despiertos y animados, sin perder calidez
-            speakingRate: 1.0,
-            pitch: 1.5
+            // Tono y velocidad ajustados por personaje (ver arriba)
+            speakingRate: speakingRate,
+            pitch: pitch
           }
         })
       }
