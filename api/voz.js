@@ -32,13 +32,12 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Texto vacío después de limpiar' });
     }
 
-    // Elegir voz y ajustes de tono según el personaje.
-    // Pancho: voz grave, un toque de energía.
-    // Meli: voz adulta y cálida (pitch bajo para que NO suene infantil/aguda).
+    // Elegir voz según el personaje.
+    // OJO: las voces Chirp 3 HD NO soportan "pitch" (tono). Solo speakingRate.
+    // La diferencia de voz entre Pancho y Meli ya viene dada por ser dos voces distintas.
     const esMeli = genero === 'female';
     const voiceName = esMeli ? VOZ_MELI : VOZ_PANCHO;
-    const speakingRate = esMeli ? 1.0 : 1.0;
-    const pitch = esMeli ? -2.0 : 1.5; // Meli más grave (adulta), Pancho con energía
+    const speakingRate = 1.0; // velocidad natural para ambos
 
     const apiKey = process.env.GOOGLE_TTS_API_KEY;
     if (!apiKey) {
@@ -60,9 +59,8 @@ export default async function handler(req, res) {
           },
           audioConfig: {
             audioEncoding: 'MP3',
-            // Tono y velocidad ajustados por personaje (ver arriba)
-            speakingRate: speakingRate,
-            pitch: pitch
+            // Chirp 3 HD solo acepta speakingRate (NO pitch)
+            speakingRate: speakingRate
           }
         })
       }
