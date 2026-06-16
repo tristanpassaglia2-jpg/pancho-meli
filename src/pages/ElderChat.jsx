@@ -438,13 +438,6 @@ export default function ElderChat() {
           🎮
         </button>
         <button
-          className="chat-header-games"
-          onClick={cambiarCompanero}
-          title={companionGender === 'male' ? 'Charlar con Meli' : 'Charlar con Pancho'}
-        >
-          🔄
-        </button>
-        <button
           className="chat-header-sos"
           onClick={() => setMostrarAviso(true)}
           title="Avisar a mi familia"
@@ -452,6 +445,24 @@ export default function ElderChat() {
           🆘
         </button>
       </header>
+
+      {/* Barra para cambiar de compañero (clara para el abuelo) */}
+      <button
+        onClick={cambiarCompanero}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          gap: 8, width: '100%', border: 'none', cursor: 'pointer',
+          background: '#FFF8E1', borderBottom: '1px solid #EFE3C4',
+          padding: '11px 16px', fontFamily: 'inherit'
+        }}
+      >
+        <span style={{ fontSize: 15, color: '#5E4F45' }}>
+          Estás charlando con <b style={{ color: '#075E54' }}>{companionName}</b>
+        </span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: '#C25E3C' }}>
+          · Tocá para cambiar a {companionGender === 'male' ? 'Meli' : 'Pancho'} 🔄
+        </span>
+      </button>
 
       {/* Banner de trial (solo si quedan pocos días) */}
       {suscripcion && suscripcion.estado === 'trial' && suscripcion.diasRestantes <= 3 && suscripcion.diasRestantes > 0 && (
