@@ -51,6 +51,7 @@ export default function ElderChat() {
   const reconocedorRef = useRef(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const safetyTimerRef = useRef(null); // red de seguridad: apaga el mic si quedó colgado
 
   const avatar = companionGender === 'male' ? PANCHO_AVATAR : MELI_AVATAR;
 
@@ -72,6 +73,7 @@ export default function ElderChat() {
   // (evita que quede el puntito naranja prendido y el celu se caliente)
   useEffect(() => {
     const apagarTodo = () => {
+      if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
       if (reconocedorRef.current) {
         detenerEscucha(reconocedorRef.current);
         reconocedorRef.current = null;
@@ -204,24 +206,37 @@ export default function ElderChat() {
     // Asegurar que el audio esté desbloqueado (este es un toque del usuario)
     desbloquearAudioiOS();
 
+    // Si ya está escuchando, apagar y salir
     if (escuchando) {
-      // Apagar bien el micrófono (libera el puntito naranja)
+      if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
       detenerEscucha(reconocedorRef.current);
       reconocedorRef.current = null;
       setEscuchando(false);
       return;
     }
-    callar(); // si Pancho está hablando, que se calle para escuchar
+
+    // Liberar SIEMPRE el reconocedor anterior antes de crear uno nuevo
+    // (si no, en la 2da vez el micrófono queda "tomado" y nace sordo)
+    if (reconocedorRef.current) {
+      detenerEscucha(reconocedorRef.current);
+      reconocedorRef.current = null;
+    }
+    if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
+
+    callar(); // cortar la voz que esté sonando (libera el canal de audio)
     setHablando(false);
 
     let yaRecibioResultado = false;
-    let inicioTimestamp = Date.now();
 
     const rec = crearReconocedorVoz({
       onResult: (texto) => {
         yaRecibioResultado = true;
+        if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
         setInput(texto);
         setEscuchando(false);
+        // liberar el reconocedor para que el próximo arranque limpio
+        detenerEscucha(reconocedorRef.current);
+        reconocedorRef.current = null;
         // Enviar automáticamente lo que dijo
         setTimeout(() => handleSendText(texto), 300);
       },
@@ -231,35 +246,42 @@ export default function ElderChat() {
         if (err === 'not-allowed') {
           alert('Para usar el micrófono, permití el acceso cuando el navegador te lo pida.');
         }
+        if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
         setEscuchando(false);
       },
       onEnd: () => {
-        // Chrome a veces cierra el reconocimiento muy rápido sin resultado.
-        // Si pasaron menos de 2 segundos y no hubo resultado, reintentar una vez.
-        if (!yaRecibioResultado && !document.hidden && (Date.now() - inicioTimestamp) < 2000 && reconocedorRef.current) {
-          try {
-            reconocedorRef.current.start();
-            return; // no apagar el indicador, seguimos escuchando
-          } catch {
-            // si falla el reinicio, dejamos de grabar
-          }
-        }
+        // Sin auto-reintento (en iPhone dejaba el micrófono colgado en rojo). Apagamos y listo.
+        if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
         setEscuchando(false);
       }
     });
 
-    if (rec) {
-      reconocedorRef.current = rec;
-      setEscuchando(true);
+    if (!rec) {
+      alert('Tu navegador no soporta el micrófono. Probá con Chrome.');
+      return;
+    }
+
+    reconocedorRef.current = rec;
+    setEscuchando(true);
+
+    // Pequeño respiro para que el celu pase de "reproducir" a "escuchar" (clave en iPhone)
+    setTimeout(() => {
       try {
         rec.start();
       } catch (err) {
         console.warn('No se pudo iniciar el micrófono:', err);
         setEscuchando(false);
       }
-    } else {
-      alert('Tu navegador no soporta el micrófono. Probá con Chrome.');
-    }
+    }, 200);
+
+    // Red de seguridad: si en 10 segundos no captó nada, apagar solo (que no quede rojo para siempre)
+    safetyTimerRef.current = setTimeout(() => {
+      if (!yaRecibioResultado && reconocedorRef.current) {
+        detenerEscucha(reconocedorRef.current);
+        reconocedorRef.current = null;
+        setEscuchando(false);
+      }
+    }, 10000);
   };
 
   // Auto-scroll al último mensaje
