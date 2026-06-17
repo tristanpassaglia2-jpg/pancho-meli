@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import './ElderChat.css';
-import { hablar, callar, crearReconocedorVoz, vozDisponible, precargarVoces } from '../lib/voz';
+import { hablar, callar, crearReconocedorVoz, vozDisponible, precargarVoces, desbloquearAudioiOS, detenerEscucha } from '../lib/voz';
 import { obtenerOCrearAbuelo, cargarHistorial, guardarMensaje, getDeviceElderId } from '../lib/memoria';
 import { avisarAFamilia, mensajeTranquilizador } from '../lib/aviso-familia';
 import { obtenerEstadoPorElder } from '../lib/suscripcion';
@@ -56,6 +56,38 @@ export default function ElderChat() {
 
   // Precargar voces del navegador al montar
   useEffect(() => { precargarVoces(); }, []);
+
+  // ── DESBLOQUEAR AUDIO en el primer toque del usuario (clave para iOS/Safari) ──
+  useEffect(() => {
+    const desbloquear = () => desbloquearAudioiOS();
+    document.addEventListener('touchend', desbloquear, { once: true });
+    document.addEventListener('click', desbloquear, { once: true });
+    return () => {
+      document.removeEventListener('touchend', desbloquear);
+      document.removeEventListener('click', desbloquear);
+    };
+  }, []);
+
+  // ── APAGAR EL MICRÓFONO al salir del chat o minimizar la app ──
+  // (evita que quede el puntito naranja prendido y el celu se caliente)
+  useEffect(() => {
+    const apagarTodo = () => {
+      if (reconocedorRef.current) {
+        detenerEscucha(reconocedorRef.current);
+        reconocedorRef.current = null;
+      }
+      setEscuchando(false);
+      callar(); // también corta cualquier voz que esté sonando
+    };
+    const onVisibilidad = () => { if (document.hidden) apagarTodo(); };
+    document.addEventListener('visibilitychange', onVisibilidad);
+    window.addEventListener('pagehide', apagarTodo);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilidad);
+      window.removeEventListener('pagehide', apagarTodo);
+      apagarTodo(); // al desmontar (salir del chat): apagar mic y voz
+    };
+  }, []);
 
   // Al abrir: si viene por link del familiar (slug) o si ya tiene sesión en el dispositivo
   useEffect(() => {
@@ -169,8 +201,13 @@ export default function ElderChat() {
 
   // El abuelo habla (voz a texto)
   const escucharAlAbuelo = () => {
+    // Asegurar que el audio esté desbloqueado (este es un toque del usuario)
+    desbloquearAudioiOS();
+
     if (escuchando) {
-      reconocedorRef.current?.stop();
+      // Apagar bien el micrófono (libera el puntito naranja)
+      detenerEscucha(reconocedorRef.current);
+      reconocedorRef.current = null;
       setEscuchando(false);
       return;
     }
@@ -199,7 +236,7 @@ export default function ElderChat() {
       onEnd: () => {
         // Chrome a veces cierra el reconocimiento muy rápido sin resultado.
         // Si pasaron menos de 2 segundos y no hubo resultado, reintentar una vez.
-        if (!yaRecibioResultado && (Date.now() - inicioTimestamp) < 2000 && reconocedorRef.current) {
+        if (!yaRecibioResultado && !document.hidden && (Date.now() - inicioTimestamp) < 2000 && reconocedorRef.current) {
           try {
             reconocedorRef.current.start();
             return; // no apagar el indicador, seguimos escuchando
@@ -234,6 +271,7 @@ export default function ElderChat() {
   const handleSetup = async (e) => {
     e.preventDefault();
     if (!elderName.trim()) return;
+    desbloquearAudioiOS(); // toque del usuario: desbloqueamos el audio
     setIsSetup(true);
 
     // Crear/recuperar el abuelo en Supabase (memoria)
@@ -260,6 +298,7 @@ export default function ElderChat() {
 
   // Enviar un texto (sirve tanto para tipeo como para voz)
   const handleSendText = async (rawText) => {
+    desbloquearAudioiOS(); // por si todavía no se desbloqueó el audio
     const text = (rawText || '').trim();
     if (!text || isTyping) return;
     // Si la suscripción venció, no dejamos enviar
