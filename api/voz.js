@@ -6,9 +6,9 @@
 // VOCES (se cambian acá fácil cuando quieras probar otras)
 //
 // Masculinas disponibles (Chirp 3 HD es-US):
-//   es-US-Chirp3-HD-Orus    → rica, narrativa (abuelo contador de historias) ← elegida
+//   es-US-Chirp3-HD-Charon  → grave, serena (la más grave, pega con la cara) ← elegida
+//   es-US-Chirp3-HD-Orus    → rica, narrativa (cálida pero más aguda)
 //   es-US-Chirp3-HD-Puck    → brillante, expresiva (más viva)
-//   es-US-Chirp3-HD-Charon  → grave, autoritaria (la anterior, más "dura")
 //   es-US-Chirp3-HD-Fenrir  → enérgica, juvenil
 //
 // Femeninas disponibles:
@@ -17,7 +17,7 @@
 //   es-US-Chirp3-HD-Aoede   → calma, suave
 //   es-US-Chirp3-HD-Kore    → neutra, informativa
 // ─────────────────────────────────────────────────────────────
-const VOZ_PANCHO = 'es-US-Chirp3-HD-Orus';   // masculina cálida y narrativa
+const VOZ_PANCHO = 'es-US-Chirp3-HD-Charon'; // masculina grave, pega con la cara de Pancho
 const VOZ_MELI   = 'es-US-Chirp3-HD-Gacrux'; // femenina cálida y dulce
 
 // Velocidad: 1.0 = natural, más bajo = más calmo/sereno. 0.92 da un tono
