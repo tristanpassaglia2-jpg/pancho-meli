@@ -10,6 +10,26 @@ import { obtenerEstadoPorElder } from '../lib/suscripcion';
 const PANCHO_AVATAR = '/pancho.jpg';
 const MELI_AVATAR = '/meli.jpg';
 
+// ───────────────────────────────────────────
+// BLOQUE B — Huella única de este celular.
+// Se guarda SOLO en este dispositivo (localStorage).
+// Sirve para casar el link del abuelo con un único celular.
+// ───────────────────────────────────────────
+function obtenerDeviceId() {
+  try {
+    let id = localStorage.getItem('pancho_meli_device_id');
+    if (!id) {
+      id = (window.crypto && window.crypto.randomUUID)
+        ? window.crypto.randomUUID()
+        : 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+      localStorage.setItem('pancho_meli_device_id', id);
+    }
+    return id;
+  } catch {
+    return null;
+  }
+}
+
 export default function ElderChat() {
   const { elderId: slugParam } = useParams(); // slug del link que mandó el familiar
   const [messages, setMessages] = useState([]);
@@ -23,6 +43,7 @@ export default function ElderChat() {
   const [elderId, setElderId] = useState(null); // id del abuelo en Supabase (memoria)
   const [mostrarAviso, setMostrarAviso] = useState(false); // modal de confirmación del aviso
   const [suscripcion, setSuscripcion] = useState(null); // estado del trial / suscripción
+  const [bloqueado, setBloqueado] = useState(false); // BLOQUE B: link ya usado en otro celular
   // ── Voz ──
   const [vozActivada, setVozActivada] = useState(true); // por defecto activada (accesibilidad)
   const [escuchando, setEscuchando] = useState(false);
@@ -46,6 +67,22 @@ export default function ElderChat() {
         if (slugParam && slugParam !== 'demo') {
           const { data } = await supabase.from('elders').select('*').eq('slug', slugParam).single();
           if (data) {
+            // ── BLOQUE B: casar el link con un solo celular ──
+            const deviceId = obtenerDeviceId();
+            if (deviceId) {
+              if (!data.device_id) {
+                // Primer celular que abre este link: lo casamos con este dispositivo
+                try {
+                  await supabase.from('elders').update({ device_id: deviceId }).eq('id', data.id);
+                } catch {}
+              } else if (data.device_id !== deviceId) {
+                // El link ya está en uso en otro celular distinto: bloquear y NO guardar nada
+                setBloqueado(true);
+                return;
+              }
+            }
+            // ── fin BLOQUE B ──
+
             setElderId(data.id);
             setElderName(data.nombre);
             setCompanionName(data.companion_name || 'Pancho');
@@ -74,6 +111,14 @@ export default function ElderChat() {
         if (!idGuardado) return;
         const { data } = await supabase.from('elders').select('*').eq('id', idGuardado).single();
         if (data) {
+          // ── BLOQUE B (defensa extra): si este abuelo ya está casado con otro celular, bloquear ──
+          const deviceId = obtenerDeviceId();
+          if (deviceId && data.device_id && data.device_id !== deviceId) {
+            setBloqueado(true);
+            return;
+          }
+          // ── fin BLOQUE B ──
+
           // Recuperamos su configuración
           setElderId(data.id);
           setElderName(data.nombre);
@@ -355,6 +400,28 @@ export default function ElderChat() {
     setShowGames(false);
     setTimeout(() => handleSend(), 100);
   };
+
+  // ─── PANTALLA BLOQUEADO (link ya usado en otro celular) ───
+  if (bloqueado) {
+    return (
+      <div className="setup-screen">
+        <div className="setup-card" style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '3.5rem', marginBottom: 8 }}>🔒</div>
+          <h1 className="setup-title">Este acceso ya está en uso</h1>
+          <p style={{ color: '#5E4F45', fontSize: '1.05rem', lineHeight: 1.6, margin: '12px 0' }}>
+            Este enlace ya se está usando en otro celular. Cada cuenta de
+            Pancho&Meli funciona en un solo teléfono.
+          </p>
+          <div style={{
+            background: '#FFF8E1', border: '1px solid #EFE3C4', borderRadius: 14,
+            padding: '1rem', fontSize: '0.95rem', color: '#7a5a2a', lineHeight: 1.5, marginTop: 8
+          }}>
+            Si cambiaste de teléfono, pedile a tu familiar que te genere un acceso nuevo. 💛
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ─── PANTALLA DE SETUP ───
   if (!isSetup) {
