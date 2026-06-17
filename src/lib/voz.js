@@ -2,11 +2,15 @@
 // PANCHO & MELI — MÓDULO DE VOZ
 // Voz PREMIUM con Google Cloud TTS (cálida y natural).
 // Si Google falla, usa la voz del navegador como respaldo.
-// Reproduce con <audio>, que SÍ funciona en Safari iOS.
+//
+// CLAVE iOS/Safari: usamos UN SOLO reproductor <audio>
+// reutilizable, "desbloqueado" en el primer toque del
+// usuario. Así Pancho/Meli suenan aunque la respuesta de
+// la IA tarde varios segundos (Safari ya autorizó el audio).
 // ═══════════════════════════════════════════════════════
 
-let audioActual = null;        // el <audio> que está sonando ahora
-let audioDesbloqueado = false; // para Safari iOS
+let audioPlayer = null;        // ÚNICO <audio> reutilizable (clave para iOS)
+let audioDesbloqueado = false; // true después del primer toque del usuario
 
 // Cache de voces del navegador (respaldo)
 let vocesCache = [];
@@ -17,17 +21,38 @@ const esSafariiOS = typeof navigator !== 'undefined' && (
   (navigator.userAgent.includes('Mac') && 'ontouchend' in document)
 );
 
+// MP3 silencioso (sirve para desbloquear el canal de audio en iOS)
+const SILENCIO_MP3 = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA4UOLD8nKVOWfh+UlK3z/177OXrfOdKl7pyn3Xf//WreyTEFNRTMuOTkuNVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
+
+// ─────────────────────────────────────────────────────────
+// Obtener (o crear) el único reproductor de audio
+// ─────────────────────────────────────────────────────────
+function obtenerPlayer() {
+  if (!audioPlayer) {
+    audioPlayer = new Audio();
+    audioPlayer.preload = 'auto';
+  }
+  return audioPlayer;
+}
+
 // ─────────────────────────────────────────────────────────
 // 0. DESBLOQUEAR AUDIO EN SAFARI iOS
 // Llamar UNA VEZ en el primer toque del usuario.
+// Reproduce un sonido silencioso en el reproductor único,
+// lo que "bendice" ese reproductor para toda la sesión.
 // ─────────────────────────────────────────────────────────
 export function desbloquearAudioiOS() {
   if (audioDesbloqueado) return;
   try {
-    // Crear y reproducir un audio silencioso desbloquea el canal en iOS
-    const a = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA4UOLD8nKVOWfh+UlK3z/177OXrfOdKl7pyn3Xf//WreyTEFNRTMuOTkuNVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV');
+    const a = obtenerPlayer();
+    a.src = SILENCIO_MP3;
     a.volume = 0;
-    a.play().catch(() => {});
+    const p = a.play();
+    if (p && typeof p.then === 'function') {
+      p.then(() => {
+        try { a.pause(); a.currentTime = 0; a.volume = 1; } catch {}
+      }).catch(() => {});
+    }
     audioDesbloqueado = true;
   } catch {}
 }
@@ -48,6 +73,7 @@ export function precargarVoces(callback) {
 
 // ─────────────────────────────────────────────────────────
 // 2. HABLAR — voz premium de Google, con respaldo al navegador
+// Reusa SIEMPRE el mismo reproductor (clave para iOS).
 // ─────────────────────────────────────────────────────────
 export async function hablar(texto, genero = 'male', { onStart, onEnd } = {}) {
   // Cortar lo que esté sonando
@@ -71,13 +97,20 @@ export async function hablar(texto, genero = 'male', { onStart, onEnd } = {}) {
     if (resp.ok) {
       const data = await resp.json();
       if (data.audio) {
-        const audio = new Audio('data:audio/mp3;base64,' + data.audio);
-        audioActual = audio;
+        const audio = obtenerPlayer(); // REUSA el reproductor desbloqueado
         audio.onplay = () => onStart?.();
-        audio.onended = () => { onEnd?.(); audioActual = null; };
-        audio.onerror = () => { onEnd?.(); audioActual = null; };
-        await audio.play();
-        return; // ¡listo, sonó la voz premium!
+        audio.onended = () => { onEnd?.(); };
+        audio.onerror = () => { onEnd?.(); };
+        audio.volume = 1;
+        audio.src = 'data:audio/mp3;base64,' + data.audio;
+        try {
+          await audio.play();
+          return; // ¡listo, sonó la voz premium!
+        } catch (e) {
+          // Si iOS todavía lo bloquea, caemos al respaldo del navegador
+          hablarNavegador(limpio, genero, { onStart, onEnd });
+          return;
+        }
       }
     }
     // Si llegamos acá, Google falló → respaldo
@@ -143,9 +176,8 @@ function elegirMejorVoz(genero = 'male') {
 // 3. CALLAR — detener cualquier voz que esté sonando
 // ─────────────────────────────────────────────────────────
 export function callar() {
-  if (audioActual) {
-    try { audioActual.pause(); audioActual.currentTime = 0; } catch {}
-    audioActual = null;
+  if (audioPlayer) {
+    try { audioPlayer.pause(); audioPlayer.currentTime = 0; } catch {}
   }
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     window.speechSynthesis.cancel();
@@ -153,7 +185,7 @@ export function callar() {
 }
 
 // ─────────────────────────────────────────────────────────
-// 4. VOZ A TEXTO (el abuelo habla) — sin cambios
+// 4. VOZ A TEXTO (el abuelo habla)
 // ─────────────────────────────────────────────────────────
 export function crearReconocedorVoz({ onResult, onError, onEnd } = {}) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -170,6 +202,20 @@ export function crearReconocedorVoz({ onResult, onError, onEnd } = {}) {
   recognition.onerror = (event) => onError?.(event.error);
   recognition.onend = () => onEnd?.();
   return recognition;
+}
+
+// ─────────────────────────────────────────────────────────
+// 4b. DETENER ESCUCHA — apaga el micrófono del todo
+// Importante en iOS: corta el reconocimiento y libera el
+// micrófono (para que NO quede el puntito naranja prendido).
+// ─────────────────────────────────────────────────────────
+export function detenerEscucha(rec) {
+  if (!rec) return;
+  try { rec.onresult = null; } catch {}
+  try { rec.onerror = null; } catch {}
+  try { rec.onend = null; } catch {}
+  try { rec.abort(); } catch {}
+  try { rec.stop(); } catch {}
 }
 
 // ─────────────────────────────────────────────────────────
