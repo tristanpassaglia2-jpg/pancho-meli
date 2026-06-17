@@ -12,6 +12,8 @@ export default function FamilyAuth() {
   const [error, setError] = useState('');
   const [exito, setExito] = useState('');
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
+  const [registroExitoso, setRegistroExitoso] = useState(false); // muestra "revisá tu mail"
+  const [emailConfirmacion, setEmailConfirmacion] = useState(''); // email al que se mandó el link
 
   const handleSubmit = async () => {
     setError('');
@@ -40,8 +42,10 @@ export default function FamilyAuth() {
       const r = await registrarFamiliar(email, password, nombre);
       setCargando(false);
       if (r.ok) {
-        setExito('¡Cuenta creada! Ya podés configurar a tu ser querido.');
-        setTimeout(() => navigate('/configurar'), 1200);
+        // Con "Confirm email" activado, NO hay sesión hasta que confirme el mail.
+        // Por eso NO navegamos a /configurar: mostramos la pantalla de "revisá tu mail".
+        setEmailConfirmacion(email.trim());
+        setRegistroExitoso(true);
       } else {
         setError(r.mensaje);
       }
@@ -56,6 +60,43 @@ export default function FamilyAuth() {
     }
   };
 
+  const volverALogin = () => {
+    setRegistroExitoso(false);
+    setModo('login');
+    setError('');
+    setExito('');
+    setPassword('');
+    setAceptaTerminos(false);
+  };
+
+  // ----- PANTALLA "REVISÁ TU MAIL" (después de registrarse) -----
+  if (registroExitoso) {
+    return (
+      <div style={S.pantalla}>
+        <div style={S.tarjeta}>
+          <div style={S.iconoMail}>📩</div>
+          <h1 style={S.tituloConfirm}>¡Casi listo!</h1>
+          <p style={S.textoConfirm}>
+            Te mandamos un correo a:
+          </p>
+          <p style={S.emailDestacado}>{emailConfirmacion}</p>
+          <p style={S.textoConfirm}>
+            Abrilo y tocá el botón <strong>“Confirmar mi cuenta”</strong>. Después volvé acá y entrá. 💛
+          </p>
+
+          <div style={S.avisoSpam}>
+            ¿No te llegó? Esperá un minuto y revisá la carpeta de <strong>Spam</strong> o <strong>Correo no deseado</strong>.
+          </div>
+
+          <button style={S.botonPrincipal} onClick={volverALogin}>
+            Ya confirmé, quiero entrar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ----- PANTALLA NORMAL (registro / login) -----
   return (
     <div style={S.pantalla}>
       <div style={S.tarjeta}>
@@ -195,5 +236,18 @@ const S = {
   checkboxLabel: { display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 14, textAlign: 'left' },
   checkbox: { marginTop: 3, width: 18, height: 18, flexShrink: 0 },
   checkboxText: { fontSize: '0.85rem', color: '#555', lineHeight: 1.5 },
-  link: { color: '#075E54', fontWeight: 600 }
+  link: { color: '#075E54', fontWeight: 600 },
+
+  // ----- Estilos de la pantalla "revisá tu mail" -----
+  iconoMail: { fontSize: '3.5rem', marginBottom: 8 },
+  tituloConfirm: { fontSize: '1.8rem', fontWeight: 800, color: '#5C3D26', margin: '0 0 14px' },
+  textoConfirm: { color: '#555', fontSize: '1.05rem', lineHeight: 1.6, margin: '0 0 10px' },
+  emailDestacado: {
+    color: '#C47A3A', fontWeight: 800, fontSize: '1.1rem', margin: '0 0 14px',
+    wordBreak: 'break-all'
+  },
+  avisoSpam: {
+    background: '#FFF8EC', color: '#7a5a2a', padding: '0.9rem', borderRadius: 12,
+    fontSize: '0.9rem', lineHeight: 1.5, margin: '6px 0 18px', border: '1px solid #F0E2C8'
+  }
 };
