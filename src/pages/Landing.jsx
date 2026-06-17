@@ -67,7 +67,6 @@ export default function Landing() {
         </div>
 
         <Link to="/entrar" className="pm-cta pm-cta-primary">Es para alguien que quiero</Link>
-        <Link to="/chat" className="pm-cta pm-cta-ghost">Quiero probarlo yo mismo</Link>
         <p className="pm-micro">7 días gratis · <b>Sin tarjeta</b> · Sin descargar nada</p>
       </header>
 
