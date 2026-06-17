@@ -375,15 +375,14 @@ export default function ElderChat() {
     setMostrarAviso(false);
     // Registrar el pedido de ayuda
     await avisarAFamilia(elderId, elderName, 'El abuelo avisó que no se siente bien');
-    // Pancho responde con calidez tranquilizadora
+    // Pancho/Meli responde con calidez tranquilizadora
     const msg = mensajeTranquilizador(companionGender, elderName);
     const companionMsg = { id: Date.now(), role: 'companion', text: msg, time: now() };
     setMessages(prev => [...prev, companionMsg]);
     if (elderId) guardarMensaje(elderId, 'companion', msg);
-    // Que lo lea en voz alta si la voz está activada
-    if (vozActivada) {
-      hablar(msg, companionGender, { onStart: () => setHablando(true), onEnd: () => setHablando(false) });
-    }
+    // NOTA: NO llamamos hablar() acá. El efecto de [messages] ya lee en voz alta
+    // el último mensaje del compañero. Si lo llamábamos también acá, la voz se
+    // duplicaba (se escuchaba dos veces con medio segundo de diferencia).
   };
 
   // Cambiar entre Pancho y Meli
