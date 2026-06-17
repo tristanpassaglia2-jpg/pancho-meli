@@ -82,6 +82,15 @@ export async function hablar(texto, genero = 'male', { onStart, onEnd } = {}) {
   const limpio = (texto || '')
     .replace(/https?:\/\/[^\s]+/g, '')
     .replace(/\*\*/g, '')
+    // Quitar risas escritas (jaja, jajaja, jeje, jiji, jojo, haha...) — leídas por la voz suenan robóticas
+    .replace(/\bja(?:ja)+j?a?\b/gi, '')
+    .replace(/\bje(?:je)+\b/gi, '')
+    .replace(/\bji(?:ji)+\b/gi, '')
+    .replace(/\bjo(?:jo)+\b/gi, '')
+    .replace(/\b(?:a?ha){2,}h?\b/gi, '')
+    // Limpiar puntuación que quedó suelta al sacar la risa
+    .replace(/\s+([,.!?;:])/g, '$1')
+    .replace(/([,;])\s*\1+/g, '$1')
     .replace(/\s+/g, ' ')
     .trim();
   if (!limpio) { onEnd?.(); return; }
