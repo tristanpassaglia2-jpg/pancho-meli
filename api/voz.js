@@ -2,9 +2,27 @@
 // El frontend manda el texto, este archivo le pide el audio a Google y devuelve un MP3.
 // Usa las voces Chirp 3 HD (es-US, español latino neutro), cálidas y naturales.
 
-// Voces elegidas (se pueden cambiar acá fácil cuando quieras probar otras)
-const VOZ_PANCHO = 'es-US-Chirp3-HD-Charon';  // masculina, grave y serena
-const VOZ_MELI = 'es-US-Chirp3-HD-Gacrux';    // femenina, cálida y dulce
+// ─────────────────────────────────────────────────────────────
+// VOCES (se cambian acá fácil cuando quieras probar otras)
+//
+// Masculinas disponibles (Chirp 3 HD es-US):
+//   es-US-Chirp3-HD-Orus    → rica, narrativa (abuelo contador de historias) ← elegida
+//   es-US-Chirp3-HD-Puck    → brillante, expresiva (más viva)
+//   es-US-Chirp3-HD-Charon  → grave, autoritaria (la anterior, más "dura")
+//   es-US-Chirp3-HD-Fenrir  → enérgica, juvenil
+//
+// Femeninas disponibles:
+//   es-US-Chirp3-HD-Gacrux  → cálida y dulce ← elegida
+//   es-US-Chirp3-HD-Leda    → cálida, conversacional
+//   es-US-Chirp3-HD-Aoede   → calma, suave
+//   es-US-Chirp3-HD-Kore    → neutra, informativa
+// ─────────────────────────────────────────────────────────────
+const VOZ_PANCHO = 'es-US-Chirp3-HD-Orus';   // masculina cálida y narrativa
+const VOZ_MELI   = 'es-US-Chirp3-HD-Gacrux'; // femenina cálida y dulce
+
+// Velocidad: 1.0 = natural, más bajo = más calmo/sereno. 0.92 da un tono
+// tranquilo, ideal para adultos mayores. Subí/bajá si querés probar.
+const VELOCIDAD = 0.92;
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -12,14 +30,11 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
   try {
     const { texto, genero } = req.body;
-
     if (!texto || !texto.trim()) {
       return res.status(400).json({ error: 'Falta el texto' });
     }
-
     // Limpiar el texto: sacar links y emojis para que no los "lea"
     const limpio = texto
       .replace(/https?:\/\/[^\s]+/g, '')
@@ -27,24 +42,20 @@ export default async function handler(req, res) {
       .replace(/\*\*/g, '')
       .replace(/\s+/g, ' ')
       .trim();
-
     if (!limpio) {
       return res.status(400).json({ error: 'Texto vacío después de limpiar' });
     }
-
     // Elegir voz según el personaje.
     // OJO: las voces Chirp 3 HD NO soportan "pitch" (tono). Solo speakingRate.
     // La diferencia de voz entre Pancho y Meli ya viene dada por ser dos voces distintas.
     const esMeli = genero === 'female';
     const voiceName = esMeli ? VOZ_MELI : VOZ_PANCHO;
-    const speakingRate = 1.0; // velocidad natural para ambos
-
+    const speakingRate = VELOCIDAD;
     const apiKey = process.env.GOOGLE_TTS_API_KEY;
     if (!apiKey) {
       console.error('Falta GOOGLE_TTS_API_KEY en las variables de entorno');
       return res.status(500).json({ error: 'Configuración de voz incompleta' });
     }
-
     // Pedir el audio a Google Cloud TTS
     const googleResp = await fetch(
       `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
@@ -65,17 +76,14 @@ export default async function handler(req, res) {
         })
       }
     );
-
     if (!googleResp.ok) {
       const errText = await googleResp.text();
       console.error('Error de Google TTS:', errText);
       return res.status(500).json({ error: 'No se pudo generar la voz' });
     }
-
     const data = await googleResp.json();
     // Google devuelve el audio en base64
     return res.status(200).json({ audio: data.audioContent });
-
   } catch (error) {
     console.error('Error en /api/voz:', error);
     return res.status(500).json({ error: 'Error al generar la voz' });
