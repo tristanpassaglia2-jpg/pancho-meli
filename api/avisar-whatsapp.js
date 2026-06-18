@@ -1,11 +1,12 @@
 // ═══════════════════════════════════════════════════════
 // PANCHO & MELI — Envío del aviso de salud por WhatsApp
-// (Meta Cloud API). Recibe el teléfono del familiar y le
-// manda la plantilla aprobada con el nombre del abuelo.
+// ⚠️ VERSIÓN DE PRUEBA: usa la plantilla 'alerta_emergencia'
+//    (ya aprobada) para testear que todo el caño funciona.
+//    👉 Cuando 'pancho_y_meli' esté Activa, volvemos a esa.
 // ═══════════════════════════════════════════════════════
 
 const GRAPH_VERSION = 'v22.0';
-const PLANTILLA = 'pancho_y_meli';   // plantilla aprobada en Meta
+const PLANTILLA = 'alerta_emergencia';   // ⚠️ PRUEBA — luego volver a 'pancho_y_meli'
 const IDIOMA = 'es_AR';
 
 // Normaliza un teléfono argentino al formato que pide WhatsApp (549...)
