@@ -82,6 +82,12 @@ export async function hablar(texto, genero = 'male', { onStart, onEnd } = {}) {
   const limpio = (texto || '')
     .replace(/https?:\/\/[^\s]+/g, '')
     .replace(/\*\*/g, '')
+    // Barras de género: "solo/a" -> "solo", "niño/a" -> "niño", "todos/as" -> "todos"
+    .replace(/([A-Za-zÁÉÍÓÚáéíóúñÑ]+)\/(?:as|os|es|a|o|e)\b/gi, '$1')
+    // Otras barras entre palabras: "él/ella" -> "él o ella"
+    .replace(/([A-Za-zÁÉÍÓÚáéíóúñÑ])\/([A-Za-zÁÉÍÓÚáéíóúñÑ])/g, '$1 o $2')
+    // Cualquier barra suelta que quede (fechas, etc.) -> espacio (nunca "barra")
+    .replace(/\//g, ' ')
     // Quitar risas escritas (jaja, jajaja, jeje, jiji, jojo, haha...) — leídas por la voz suenan robóticas
     .replace(/\bja(?:ja)+j?a?\b/gi, '')
     .replace(/\bje(?:je)+\b/gi, '')
