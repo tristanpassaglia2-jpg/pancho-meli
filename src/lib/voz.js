@@ -7,6 +7,10 @@
 // reutilizable, "desbloqueado" en el primer toque del
 // usuario. Así Pancho/Meli suenan aunque la respuesta de
 // la IA tarde varios segundos (Safari ya autorizó el audio).
+//
+// FIX MICRÓFONO iOS: al terminar (o cortar) la voz, VACIAMOS
+// el reproductor (src vacío + load) para soltar el canal de
+// audio. Si no, el micrófono queda "tomado" y nace sordo.
 // ═══════════════════════════════════════════════════════
 
 let audioPlayer = null;        // ÚNICO <audio> reutilizable (clave para iOS)
@@ -114,7 +118,11 @@ export async function hablar(texto, genero = 'male', { onStart, onEnd } = {}) {
       if (data.audio) {
         const audio = obtenerPlayer(); // REUSA el reproductor desbloqueado
         audio.onplay = () => onStart?.();
-        audio.onended = () => { onEnd?.(); };
+        audio.onended = () => {
+          // FIX iOS: al terminar, soltar el canal de audio para que el micrófono lo recupere
+          try { audio.removeAttribute('src'); audio.load(); } catch {}
+          onEnd?.();
+        };
         audio.onerror = () => { onEnd?.(); };
         audio.volume = 1;
         audio.src = 'data:audio/mp3;base64,' + data.audio;
@@ -189,10 +197,18 @@ function elegirMejorVoz(genero = 'male') {
 
 // ─────────────────────────────────────────────────────────
 // 3. CALLAR — detener cualquier voz que esté sonando
+// FIX iOS: además de pausar, VACIAMOS el reproductor para
+// soltar el canal de audio (si no, el micrófono nace sordo).
 // ─────────────────────────────────────────────────────────
 export function callar() {
   if (audioPlayer) {
-    try { audioPlayer.pause(); audioPlayer.currentTime = 0; } catch {}
+    try {
+      audioPlayer.pause();
+      audioPlayer.currentTime = 0;
+      // iOS: liberar el canal de reproducción para que el micrófono lo pueda tomar de nuevo
+      audioPlayer.removeAttribute('src');
+      audioPlayer.load();
+    } catch {}
   }
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     window.speechSynthesis.cancel();
