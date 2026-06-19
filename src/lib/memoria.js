@@ -1,15 +1,15 @@
 // ═══════════════════════════════════════════════════════
 // PANCHO & MELI — MÓDULO DE MEMORIA (Nivel 1, Camino A)
 // Guarda y recupera al abuelo y sus charlas desde Supabase.
-// Usa un identificador local en el dispositivo para reconocer
-// al abuelo cuando vuelve a abrir la app.
+// Las charlas (conversations) ahora pasan por funciones seguras
+// (cargar_historial / guardar_mensaje) para no exponer la tabla
+// a la clave pública.
 // ═══════════════════════════════════════════════════════
 
 import { supabase } from './supabase';
 
 // ───────────────────────────────────────────
 // Identificador del abuelo en ESTE dispositivo
-// Se guarda en el navegador. Si ya existe, lo reusa.
 // ───────────────────────────────────────────
 const STORAGE_KEY = 'pancho_meli_elder_id';
 
@@ -32,12 +32,12 @@ function saveDeviceElderId(id) {
 
 // ───────────────────────────────────────────
 // Crear o recuperar el abuelo en Supabase
-// Devuelve el registro del abuelo (con su id).
+// (sigue usando la tabla elders directo — esa tabla la blindamos
+//  en una etapa posterior)
 // ───────────────────────────────────────────
 export async function obtenerOCrearAbuelo({ nombre, companionName, companionGender }) {
   const existingId = getDeviceElderId();
 
-  // 1. Si ya tenemos un id guardado en el dispositivo, intentamos recuperarlo
   if (existingId) {
     try {
       const { data, error } = await supabase
@@ -46,14 +46,13 @@ export async function obtenerOCrearAbuelo({ nombre, companionName, companionGend
         .eq('id', existingId)
         .single();
       if (!error && data) {
-        return data; // ¡Abuelo encontrado! Pancho lo recuerda.
+        return data;
       }
     } catch {
       // si falla, seguimos a crear uno nuevo
     }
   }
 
-  // 2. Si no existe, creamos un abuelo nuevo
   try {
     const { data, error } = await supabase
       .from('elders')
@@ -73,23 +72,19 @@ export async function obtenerOCrearAbuelo({ nombre, companionName, companionGend
     console.warn('No se pudo crear el abuelo en Supabase:', err);
   }
 
-  // 3. Si Supabase falla del todo, devolvemos null (la app sigue funcionando sin memoria)
   return null;
 }
 
 // ───────────────────────────────────────────
-// Cargar el historial de charlas de un abuelo
-// Devuelve los últimos N mensajes (más recientes primero, los damos vuelta)
+// Cargar el historial de charlas (vía función segura)
 // ───────────────────────────────────────────
 export async function cargarHistorial(elderId, limite = 50) {
   if (!elderId) return [];
   try {
-    const { data, error } = await supabase
-      .from('conversations')
-      .select('role, content, created_at')
-      .eq('elder_id', elderId)
-      .order('created_at', { ascending: false })
-      .limit(limite);
+    const { data, error } = await supabase.rpc('cargar_historial', {
+      p_elder_id: elderId,
+      p_limite: limite
+    });
 
     if (error || !data) return [];
     // Vienen del más nuevo al más viejo; los damos vuelta para mostrar en orden
@@ -105,14 +100,16 @@ export async function cargarHistorial(elderId, limite = 50) {
 }
 
 // ───────────────────────────────────────────
-// Guardar un mensaje (del abuelo o de Pancho)
+// Guardar un mensaje (vía función segura)
 // ───────────────────────────────────────────
 export async function guardarMensaje(elderId, role, content) {
   if (!elderId) return;
   try {
-    await supabase
-      .from('conversations')
-      .insert({ elder_id: elderId, role, content });
+    await supabase.rpc('guardar_mensaje', {
+      p_elder_id: elderId,
+      p_role: role,
+      p_content: content
+    });
   } catch (err) {
     console.warn('No se pudo guardar el mensaje:', err);
     // No frenamos la app si falla el guardado
