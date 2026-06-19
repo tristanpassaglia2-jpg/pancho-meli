@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import './ElderChat.css';
-import { hablar, callar, crearReconocedorVoz, vozDisponible, precargarVoces, desbloquearAudioiOS, detenerEscucha } from '../lib/voz';
+import { hablar, callar, iniciarGrabacion, vozDisponible, precargarVoces, desbloquearAudioiOS } from '../lib/voz';
 import { obtenerOCrearAbuelo, cargarHistorial, guardarMensaje, getDeviceElderId } from '../lib/memoria';
 import { avisarAFamilia, mensajeTranquilizador } from '../lib/aviso-familia';
 import { obtenerEstadoPorElder } from '../lib/suscripcion';
@@ -12,8 +12,6 @@ const MELI_AVATAR = '/meli.jpg';
 
 // ───────────────────────────────────────────
 // BLOQUE B — Huella única de este celular.
-// Se guarda SOLO en este dispositivo (localStorage).
-// Sirve para casar el link del abuelo con un único celular.
 // ───────────────────────────────────────────
 function obtenerDeviceId() {
   try {
@@ -31,7 +29,7 @@ function obtenerDeviceId() {
 }
 
 export default function ElderChat() {
-  const { elderId: slugParam } = useParams(); // slug del link que mandó el familiar
+  const { elderId: slugParam } = useParams();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -40,18 +38,17 @@ export default function ElderChat() {
   const [elderName, setElderName] = useState('');
   const [isSetup, setIsSetup] = useState(false);
   const [showGames, setShowGames] = useState(false);
-  const [elderId, setElderId] = useState(null); // id del abuelo en Supabase (memoria)
-  const [mostrarAviso, setMostrarAviso] = useState(false); // modal de confirmación del aviso
-  const [suscripcion, setSuscripcion] = useState(null); // estado del trial / suscripción
-  const [bloqueado, setBloqueado] = useState(false); // BLOQUE B: link ya usado en otro celular
+  const [elderId, setElderId] = useState(null);
+  const [mostrarAviso, setMostrarAviso] = useState(false);
+  const [suscripcion, setSuscripcion] = useState(null);
+  const [bloqueado, setBloqueado] = useState(false);
   // ── Voz ──
-  const [vozActivada, setVozActivada] = useState(true); // por defecto activada (accesibilidad)
+  const [vozActivada, setVozActivada] = useState(true);
   const [escuchando, setEscuchando] = useState(false);
   const [hablando, setHablando] = useState(false);
-  const reconocedorRef = useRef(null);
+  const grabadorRef = useRef(null); // controlador de la grabación en curso
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
-  const safetyTimerRef = useRef(null); // red de seguridad: apaga el mic si quedó colgado
 
   const avatar = companionGender === 'male' ? PANCHO_AVATAR : MELI_AVATAR;
 
@@ -70,16 +67,14 @@ export default function ElderChat() {
   }, []);
 
   // ── APAGAR EL MICRÓFONO al salir del chat o minimizar la app ──
-  // (evita que quede el puntito naranja prendido y el celu se caliente)
   useEffect(() => {
     const apagarTodo = () => {
-      if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
-      if (reconocedorRef.current) {
-        detenerEscucha(reconocedorRef.current);
-        reconocedorRef.current = null;
+      if (grabadorRef.current) {
+        try { grabadorRef.current.detener(); } catch {}
+        grabadorRef.current = null;
       }
       setEscuchando(false);
-      callar(); // también corta cualquier voz que esté sonando
+      callar();
     };
     const onVisibilidad = () => { if (document.hidden) apagarTodo(); };
     document.addEventListener('visibilitychange', onVisibilidad);
@@ -87,7 +82,7 @@ export default function ElderChat() {
     return () => {
       document.removeEventListener('visibilitychange', onVisibilidad);
       window.removeEventListener('pagehide', apagarTodo);
-      apagarTodo(); // al desmontar (salir del chat): apagar mic y voz
+      apagarTodo();
     };
   }, []);
 
@@ -97,33 +92,26 @@ export default function ElderChat() {
       try {
         const { supabase } = await import('../lib/supabase');
 
-        // 1. Si viene por link del familiar (slug en la URL)
         if (slugParam && slugParam !== 'demo') {
           const { data } = await supabase.from('elders').select('*').eq('slug', slugParam).single();
           if (data) {
-            // ── BLOQUE B: casar el link con un solo celular ──
             const deviceId = obtenerDeviceId();
             if (deviceId) {
               if (!data.device_id) {
-                // Primer celular que abre este link: lo casamos con este dispositivo
                 try {
                   await supabase.from('elders').update({ device_id: deviceId }).eq('id', data.id);
                 } catch {}
               } else if (data.device_id !== deviceId) {
-                // El link ya está en uso en otro celular distinto: bloquear y NO guardar nada
                 setBloqueado(true);
                 return;
               }
             }
-            // ── fin BLOQUE B ──
 
             setElderId(data.id);
             setElderName(data.nombre);
             setCompanionName(data.companion_name || 'Pancho');
             setCompanionGender(data.companion_gender || 'male');
-            // Consultar estado de la suscripción (7 días gratis)
             obtenerEstadoPorElder(data.id).then(s => setSuscripcion(s));
-            // Guardar en el dispositivo para que la próxima vez entre directo
             try { localStorage.setItem('pancho_meli_elder_id', data.id); } catch {}
             const hist = await cargarHistorial(data.id);
             if (hist.length > 0) {
@@ -140,32 +128,25 @@ export default function ElderChat() {
           }
         }
 
-        // 2. Si ya tiene sesión guardada en el dispositivo
         const idGuardado = getDeviceElderId();
         if (!idGuardado) return;
         const { data } = await supabase.from('elders').select('*').eq('id', idGuardado).single();
         if (data) {
-          // ── BLOQUE B (defensa extra): si este abuelo ya está casado con otro celular, bloquear ──
           const deviceId = obtenerDeviceId();
           if (deviceId && data.device_id && data.device_id !== deviceId) {
             setBloqueado(true);
             return;
           }
-          // ── fin BLOQUE B ──
 
-          // Recuperamos su configuración
           setElderId(data.id);
           setElderName(data.nombre);
           setCompanionName(data.companion_name || 'Pancho');
           setCompanionGender(data.companion_gender || 'male');
-          // Consultar estado de la suscripción (7 días gratis)
           obtenerEstadoPorElder(data.id).then(s => setSuscripcion(s));
-          // Cargamos el historial de charlas
           const hist = await cargarHistorial(data.id);
           if (hist.length > 0) {
             setMessages(hist);
           } else {
-            // Sin historial: saludo de reencuentro
             const g = (data.companion_gender || 'male') === 'male'
               ? `¡Hola de nuevo ${data.nombre}! Soy Pancho. ¡Qué bueno verte otra vez! ¿Cómo venís? 😄`
               : `¡Hola de nuevo ${data.nombre}! Soy Meli. ¡Qué alegría que volviste! ¿Cómo andás? 😊`;
@@ -201,88 +182,51 @@ export default function ElderChat() {
     setVozActivada(!vozActivada);
   };
 
-  // El abuelo habla (voz a texto)
-  const escucharAlAbuelo = () => {
-    // Asegurar que el audio esté desbloqueado (este es un toque del usuario)
+  // El abuelo habla (voz a texto) — graba y manda a Google al quedarse callado
+  const escucharAlAbuelo = async () => {
+    // Toque del usuario: desbloquear audio (clave iOS)
     desbloquearAudioiOS();
 
-    // Si ya está escuchando, apagar y salir
+    // Si ya está grabando, cortar y mandar lo que haya
     if (escuchando) {
-      if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
-      detenerEscucha(reconocedorRef.current);
-      reconocedorRef.current = null;
-      setEscuchando(false);
+      if (grabadorRef.current) {
+        grabadorRef.current.detener();
+        grabadorRef.current = null;
+      }
       return;
     }
 
-    // Liberar SIEMPRE el reconocedor anterior antes de crear uno nuevo
-    // (si no, en la 2da vez el micrófono queda "tomado" y nace sordo)
-    if (reconocedorRef.current) {
-      detenerEscucha(reconocedorRef.current);
-      reconocedorRef.current = null;
-    }
-    if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
-
-    callar(); // cortar la voz que esté sonando (libera el canal de audio)
+    // Cortar la voz de Pancho si está sonando (libera el canal de audio)
+    callar();
     setHablando(false);
+    setEscuchando(true);
 
-    let yaRecibioResultado = false;
-
-    const rec = crearReconocedorVoz({
-      onResult: (texto) => {
-        yaRecibioResultado = true;
-        if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
-        setInput(texto);
+    const grabador = await iniciarGrabacion({
+      onResultado: (texto) => {
+        grabadorRef.current = null;
         setEscuchando(false);
-        // liberar el reconocedor para que el próximo arranque limpio
-        detenerEscucha(reconocedorRef.current);
-        reconocedorRef.current = null;
-        // Enviar automáticamente lo que dijo
-        setTimeout(() => handleSendText(texto), 300);
+        handleSendText(texto);
       },
       onError: (err) => {
-        console.warn('Error de micrófono:', err);
-        // Si el error es por permisos, avisar al abuelo
+        grabadorRef.current = null;
+        setEscuchando(false);
         if (err === 'not-allowed') {
           alert('Para usar el micrófono, permití el acceso cuando el navegador te lo pida.');
+        } else if (err === 'sin-soporte') {
+          alert('Tu navegador no soporta el micrófono. Probá actualizando Safari o con Chrome.');
         }
-        if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
-        setEscuchando(false);
       },
-      onEnd: () => {
-        // Sin auto-reintento (en iPhone dejaba el micrófono colgado en rojo). Apagamos y listo.
-        if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
+      onFin: () => {
+        grabadorRef.current = null;
         setEscuchando(false);
       }
     });
 
-    if (!rec) {
-      alert('Tu navegador no soporta el micrófono. Probá con Chrome.');
-      return;
+    if (grabador) {
+      grabadorRef.current = grabador;
+    } else {
+      setEscuchando(false);
     }
-
-    reconocedorRef.current = rec;
-    setEscuchando(true);
-
-    // Pequeño respiro para que el celu pase de "reproducir" a "escuchar" (clave en iPhone).
-    // iOS necesita un respiro mayor para soltar el canal de audio antes de grabar.
-    setTimeout(() => {
-      try {
-        rec.start();
-      } catch (err) {
-        console.warn('No se pudo iniciar el micrófono:', err);
-        setEscuchando(false);
-      }
-    }, 350);
-
-    // Red de seguridad: si en 10 segundos no captó nada, apagar solo (que no quede rojo para siempre)
-    safetyTimerRef.current = setTimeout(() => {
-      if (!yaRecibioResultado && reconocedorRef.current) {
-        detenerEscucha(reconocedorRef.current);
-        reconocedorRef.current = null;
-        setEscuchando(false);
-      }
-    }, 10000);
   };
 
   // Auto-scroll al último mensaje
@@ -290,14 +234,13 @@ export default function ElderChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  // Setup: crea el abuelo en Supabase (memoria) y arranca la charla
+  // Setup: crea el abuelo en Supabase y arranca la charla
   const handleSetup = async (e) => {
     e.preventDefault();
     if (!elderName.trim()) return;
-    desbloquearAudioiOS(); // toque del usuario: desbloqueamos el audio
+    desbloquearAudioiOS();
     setIsSetup(true);
 
-    // Crear/recuperar el abuelo en Supabase (memoria)
     const abuelo = await obtenerOCrearAbuelo({
       nombre: elderName.trim(),
       companionName,
@@ -305,14 +248,12 @@ export default function ElderChat() {
     });
     if (abuelo) setElderId(abuelo.id);
 
-    // Primer mensaje de bienvenida
     const greeting = companionGender === 'male'
       ? `¡Hola ${elderName}! Soy Pancho, tu nuevo compañero de charlas. Me dijeron que te gusta conversar, ¡así que ya tenemos tema para rato! 😄 ¿Cómo andás hoy?`
       : `¡Hola ${elderName}! Soy Meli, tu nueva compañera de charlas. Me contaron que sos una persona muy interesante, ¡así que acá estoy para conocerte! 😊 ¿Cómo estás hoy?`;
 
     setMessages([{ id: 1, role: 'companion', text: greeting, time: now() }]);
 
-    // Guardamos el saludo en la memoria
     if (abuelo) guardarMensaje(abuelo.id, 'companion', greeting);
   };
 
@@ -321,10 +262,9 @@ export default function ElderChat() {
 
   // Enviar un texto (sirve tanto para tipeo como para voz)
   const handleSendText = async (rawText) => {
-    desbloquearAudioiOS(); // por si todavía no se desbloqueó el audio
+    desbloquearAudioiOS();
     const text = (rawText || '').trim();
     if (!text || isTyping) return;
-    // Si la suscripción venció, no dejamos enviar
     if (suscripcion && !suscripcion.activa) return;
 
     const userMsg = {
@@ -339,11 +279,9 @@ export default function ElderChat() {
     setIsTyping(true);
     setShowGames(false);
 
-    // Guardar el mensaje del abuelo en la memoria
     if (elderId) guardarMensaje(elderId, 'elder', text);
 
     try {
-      // Llamada al backend proxy de Claude API
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -371,7 +309,6 @@ export default function ElderChat() {
 
       setMessages(prev => [...prev, companionMsg]);
 
-      // Guardar la respuesta de Pancho en la memoria
       if (elderId) guardarMensaje(elderId, 'companion', replyText);
     } catch (err) {
       console.error('Error al chatear:', err);
@@ -396,28 +333,21 @@ export default function ElderChat() {
   // El abuelo confirma que quiere avisar a su familia
   const confirmarAviso = async () => {
     setMostrarAviso(false);
-    // Registrar el pedido de ayuda
     await avisarAFamilia(elderId, elderName, 'El abuelo avisó que no se siente bien');
-    // Pancho/Meli responde con calidez tranquilizadora
     const msg = mensajeTranquilizador(companionGender, elderName);
     const companionMsg = { id: Date.now(), role: 'companion', text: msg, time: now() };
     setMessages(prev => [...prev, companionMsg]);
     if (elderId) guardarMensaje(elderId, 'companion', msg);
-    // NOTA: NO llamamos hablar() acá. El efecto de [messages] ya lee en voz alta
-    // el último mensaje del compañero. Si lo llamábamos también acá, la voz se
-    // duplicaba (se escuchaba dos veces con medio segundo de diferencia).
   };
 
   // Cambiar entre Pancho y Meli
   const cambiarCompanero = async () => {
     const nuevoGender = companionGender === 'male' ? 'female' : 'male';
     const nuevoName = nuevoGender === 'male' ? 'Pancho' : 'Meli';
-    const viejoName = companionName;
 
     setCompanionGender(nuevoGender);
     setCompanionName(nuevoName);
 
-    // Actualizar en Supabase
     if (elderId) {
       try {
         const { supabase } = await import('../lib/supabase');
@@ -428,7 +358,6 @@ export default function ElderChat() {
       } catch {}
     }
 
-    // Mensaje de transición cálido
     const transicion = nuevoGender === 'male'
       ? `¡Hola ${elderName}! Soy Pancho. Meli me dijo que estaban charlando, así que acá me sumo yo. ¿Cómo andás?`
       : `¡Hola ${elderName}! Soy Meli. Pancho me contó que estaban de charla, así que vine a hacerte compañía. ¿Cómo estás?`;
@@ -574,7 +503,7 @@ export default function ElderChat() {
         </button>
       </header>
 
-      {/* Barra para cambiar de compañero (clara para el abuelo) */}
+      {/* Barra para cambiar de compañero */}
       <button
         onClick={cambiarCompanero}
         style={{
@@ -592,14 +521,14 @@ export default function ElderChat() {
         </span>
       </button>
 
-      {/* Banner de trial (solo si quedan pocos días) */}
+      {/* Banner de trial */}
       {suscripcion && suscripcion.estado === 'trial' && suscripcion.diasRestantes <= 3 && suscripcion.diasRestantes > 0 && (
         <div className="trial-banner">
           ⏰ Te quedan {suscripcion.diasRestantes} {suscripcion.diasRestantes === 1 ? 'día' : 'días'} de prueba gratis
         </div>
       )}
 
-      {/* Pantalla de suscripción vencida (bloquea el chat) */}
+      {/* Suscripción vencida */}
       {suscripcion && suscripcion.estado === 'vencida' && (
         <div className="trial-vencido-overlay">
           <div className="trial-vencido-card">
