@@ -264,7 +264,8 @@ export default function ElderChat() {
     reconocedorRef.current = rec;
     setEscuchando(true);
 
-    // Pequeño respiro para que el celu pase de "reproducir" a "escuchar" (clave en iPhone)
+    // Pequeño respiro para que el celu pase de "reproducir" a "escuchar" (clave en iPhone).
+    // iOS necesita un respiro mayor para soltar el canal de audio antes de grabar.
     setTimeout(() => {
       try {
         rec.start();
@@ -272,7 +273,7 @@ export default function ElderChat() {
         console.warn('No se pudo iniciar el micrófono:', err);
         setEscuchando(false);
       }
-    }, 200);
+    }, 350);
 
     // Red de seguridad: si en 10 segundos no captó nada, apagar solo (que no quede rojo para siempre)
     safetyTimerRef.current = setTimeout(() => {
