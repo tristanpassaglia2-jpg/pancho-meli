@@ -1,12 +1,10 @@
 // ═══════════════════════════════════════════════════════
 // PANCHO & MELI — Envío del aviso de salud por WhatsApp
-// ⚠️ VERSIÓN DE PRUEBA: usa la plantilla 'alerta_emergencia'
-//    (ya aprobada) para testear que todo el caño funciona.
-//    👉 Cuando 'pancho_y_meli' esté Activa, volvemos a esa.
+// ✅ PRODUCCIÓN: usa la plantilla propia 'pancho_y_meli'
+//    (Activa en Meta · 1 variable {{1}} = nombre del abuelo).
 // ═══════════════════════════════════════════════════════
-
 const GRAPH_VERSION = 'v22.0';
-const PLANTILLA = 'alerta_emergencia';   // ⚠️ PRUEBA — luego volver a 'pancho_y_meli'
+const PLANTILLA = 'pancho_y_meli';   // ✅ Plantilla propia y aprobada
 const IDIOMA = 'es_AR';
 
 // Normaliza un teléfono argentino al formato que pide WhatsApp (549...)
@@ -29,26 +27,22 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'metodo_no_permitido' });
   }
-
   const TOKEN = process.env.WHATSAPP_TOKEN;
   const PHONE_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
   if (!TOKEN || !PHONE_ID) {
     console.error('Faltan WHATSAPP_TOKEN o WHATSAPP_PHONE_NUMBER_ID');
     return res.status(500).json({ ok: false, error: 'config_incompleta' });
   }
-
   let body = req.body;
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch { body = {}; }
   }
   const { telefono, nombreAbuelo } = body || {};
-
   const para = normalizarTelefonoAR(telefono);
   if (!para) {
     return res.status(400).json({ ok: false, error: 'telefono_invalido' });
   }
   const nombre = (nombreAbuelo && String(nombreAbuelo).trim()) || 'Tu ser querido';
-
   const url = `https://graph.facebook.com/${GRAPH_VERSION}/${PHONE_ID}/messages`;
   const payload = {
     messaging_product: 'whatsapp',
@@ -62,7 +56,6 @@ export default async function handler(req, res) {
       ]
     }
   };
-
   try {
     const r = await fetch(url, {
       method: 'POST',
