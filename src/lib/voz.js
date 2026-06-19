@@ -4,13 +4,11 @@
 // Si Google falla, usa la voz del navegador como respaldo.
 //
 // CLAVE iOS/Safari: usamos UN SOLO reproductor <audio>
-// reutilizable, "desbloqueado" en el primer toque del
-// usuario. Así Pancho/Meli suenan aunque la respuesta de
-// la IA tarde varios segundos (Safari ya autorizó el audio).
+// reutilizable, "desbloqueado" en el primer toque del usuario.
 //
-// FIX MICRÓFONO iOS: al terminar (o cortar) la voz, VACIAMOS
-// el reproductor (src vacío + load) para soltar el canal de
-// audio. Si no, el micrófono queda "tomado" y nace sordo.
+// MICRÓFONO (el abuelo habla): grabamos el audio con getUserMedia
+// + Web Audio y lo mandamos a Google Speech-to-Text (api/transcribir).
+// Esto SÍ es confiable en iPhone (a diferencia de webkitSpeechRecognition).
 // ═══════════════════════════════════════════════════════
 
 let audioPlayer = null;        // ÚNICO <audio> reutilizable (clave para iOS)
@@ -42,8 +40,6 @@ function obtenerPlayer() {
 // ─────────────────────────────────────────────────────────
 // 0. DESBLOQUEAR AUDIO EN SAFARI iOS
 // Llamar UNA VEZ en el primer toque del usuario.
-// Reproduce un sonido silencioso en el reproductor único,
-// lo que "bendice" ese reproductor para toda la sesión.
 // ─────────────────────────────────────────────────────────
 export function desbloquearAudioiOS() {
   if (audioDesbloqueado) return;
@@ -77,7 +73,6 @@ export function precargarVoces(callback) {
 
 // ─────────────────────────────────────────────────────────
 // 2. HABLAR — voz premium de Google, con respaldo al navegador
-// Reusa SIEMPRE el mismo reproductor (clave para iOS).
 // ─────────────────────────────────────────────────────────
 export async function hablar(texto, genero = 'male', { onStart, onEnd } = {}) {
   // Cortar lo que esté sonando
@@ -92,13 +87,12 @@ export async function hablar(texto, genero = 'male', { onStart, onEnd } = {}) {
     .replace(/([A-Za-zÁÉÍÓÚáéíóúñÑ])\/([A-Za-zÁÉÍÓÚáéíóúñÑ])/g, '$1 o $2')
     // Cualquier barra suelta que quede (fechas, etc.) -> espacio (nunca "barra")
     .replace(/\//g, ' ')
-    // Quitar risas escritas (jaja, jajaja, jeje, jiji, jojo, haha...) — leídas por la voz suenan robóticas
+    // Quitar risas escritas (jaja, jajaja, jeje, jiji, jojo, haha...)
     .replace(/\bja(?:ja)+j?a?\b/gi, '')
     .replace(/\bje(?:je)+\b/gi, '')
     .replace(/\bji(?:ji)+\b/gi, '')
     .replace(/\bjo(?:jo)+\b/gi, '')
     .replace(/\b(?:a?ha){2,}h?\b/gi, '')
-    // Limpiar puntuación que quedó suelta al sacar la risa
     .replace(/\s+([,.!?;:])/g, '$1')
     .replace(/([,;])\s*\1+/g, '$1')
     .replace(/\s+/g, ' ')
@@ -106,7 +100,6 @@ export async function hablar(texto, genero = 'male', { onStart, onEnd } = {}) {
   if (!limpio) { onEnd?.(); return; }
 
   try {
-    // 1) Pedir la voz premium a nuestro backend (Google TTS)
     const resp = await fetch('/api/voz', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -116,10 +109,10 @@ export async function hablar(texto, genero = 'male', { onStart, onEnd } = {}) {
     if (resp.ok) {
       const data = await resp.json();
       if (data.audio) {
-        const audio = obtenerPlayer(); // REUSA el reproductor desbloqueado
+        const audio = obtenerPlayer();
         audio.onplay = () => onStart?.();
         audio.onended = () => {
-          // FIX iOS: al terminar, soltar el canal de audio para que el micrófono lo recupere
+          // FIX iOS: al terminar, soltar el canal de audio
           try { audio.removeAttribute('src'); audio.load(); } catch {}
           onEnd?.();
         };
@@ -128,15 +121,13 @@ export async function hablar(texto, genero = 'male', { onStart, onEnd } = {}) {
         audio.src = 'data:audio/mp3;base64,' + data.audio;
         try {
           await audio.play();
-          return; // ¡listo, sonó la voz premium!
+          return;
         } catch (e) {
-          // Si iOS todavía lo bloquea, caemos al respaldo del navegador
           hablarNavegador(limpio, genero, { onStart, onEnd });
           return;
         }
       }
     }
-    // Si llegamos acá, Google falló → respaldo
     hablarNavegador(limpio, genero, { onStart, onEnd });
   } catch (err) {
     console.warn('Voz premium falló, uso respaldo del navegador:', err);
@@ -197,15 +188,12 @@ function elegirMejorVoz(genero = 'male') {
 
 // ─────────────────────────────────────────────────────────
 // 3. CALLAR — detener cualquier voz que esté sonando
-// FIX iOS: además de pausar, VACIAMOS el reproductor para
-// soltar el canal de audio (si no, el micrófono nace sordo).
 // ─────────────────────────────────────────────────────────
 export function callar() {
   if (audioPlayer) {
     try {
       audioPlayer.pause();
       audioPlayer.currentTime = 0;
-      // iOS: liberar el canal de reproducción para que el micrófono lo pueda tomar de nuevo
       audioPlayer.removeAttribute('src');
       audioPlayer.load();
     } catch {}
@@ -215,45 +203,187 @@ export function callar() {
   }
 }
 
-// ─────────────────────────────────────────────────────────
-// 4. VOZ A TEXTO (el abuelo habla)
-// ─────────────────────────────────────────────────────────
-export function crearReconocedorVoz({ onResult, onError, onEnd } = {}) {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    console.warn('Este navegador no soporta reconocimiento de voz');
-    return null;
+// ═════════════════════════════════════════════════════════
+// 4. EL ABUELO HABLA — grabación + Google Speech-to-Text
+// (reemplaza al viejo webkitSpeechRecognition, frágil en iPhone)
+// ═════════════════════════════════════════════════════════
+
+// Contexto de audio reutilizable (iOS limita cuántos podés crear, así que
+// usamos uno solo y lo suspendemos/reactivamos en cada grabación).
+let ctxGrabacion = null;
+function obtenerContextoGrabacion() {
+  if (!ctxGrabacion || ctxGrabacion.state === 'closed') {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    ctxGrabacion = new AC();
   }
-  const recognition = new SpeechRecognition();
-  recognition.lang = 'es-AR';
-  recognition.continuous = false;
-  recognition.interimResults = false;
-  recognition.maxAlternatives = 1;
-  recognition.onresult = (event) => onResult?.(event.results[0][0].transcript);
-  recognition.onerror = (event) => onError?.(event.error);
-  recognition.onend = () => onEnd?.();
-  return recognition;
+  return ctxGrabacion;
 }
 
-// ─────────────────────────────────────────────────────────
-// 4b. DETENER ESCUCHA — apaga el micrófono del todo
-// Importante en iOS: corta el reconocimiento y libera el
-// micrófono (para que NO quede el puntito naranja prendido).
-// ─────────────────────────────────────────────────────────
-export function detenerEscucha(rec) {
-  if (!rec) return;
-  try { rec.onresult = null; } catch {}
-  try { rec.onerror = null; } catch {}
-  try { rec.onend = null; } catch {}
-  try { rec.abort(); } catch {}
-  try { rec.stop(); } catch {}
+// Resamplea a 16000 Hz (lo óptimo para Google) con interpolación lineal.
+function resamplearA16k(float32, sampleRateOrigen) {
+  const destino = 16000;
+  if (sampleRateOrigen === destino) return float32;
+  const ratio = sampleRateOrigen / destino;
+  const nuevoLargo = Math.round(float32.length / ratio);
+  const salida = new Float32Array(nuevoLargo);
+  for (let i = 0; i < nuevoLargo; i++) {
+    const pos = i * ratio;
+    const i0 = Math.floor(pos);
+    const i1 = Math.min(i0 + 1, float32.length - 1);
+    const frac = pos - i0;
+    salida[i] = float32[i0] * (1 - frac) + float32[i1] * frac;
+  }
+  return salida;
+}
+
+function floatAInt16(float32) {
+  const int16 = new Int16Array(float32.length);
+  for (let i = 0; i < float32.length; i++) {
+    let s = Math.max(-1, Math.min(1, float32[i]));
+    int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+  }
+  return int16;
+}
+
+function int16ABase64(int16) {
+  const bytes = new Uint8Array(int16.buffer);
+  let binario = '';
+  const tam = 0x8000;
+  for (let i = 0; i < bytes.length; i += tam) {
+    binario += String.fromCharCode.apply(null, bytes.subarray(i, i + tam));
+  }
+  return btoa(binario);
+}
+
+// Arranca a grabar. Detecta cuando el abuelo deja de hablar y manda solo.
+// Devuelve un controlador con .detener() para cortar manualmente.
+export async function iniciarGrabacion({ onResultado, onError, onFin } = {}) {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    onError?.('sin-soporte');
+    return null;
+  }
+
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    const nombre = err && err.name;
+    if (nombre === 'NotAllowedError' || nombre === 'SecurityError') onError?.('not-allowed');
+    else onError?.(nombre || 'error-microfono');
+    return null;
+  }
+
+  const ctx = obtenerContextoGrabacion();
+  // TRUCO iOS: reactivar el contexto (Apple lo suspende tras reproducir la voz de Pancho)
+  try { if (ctx.state === 'suspended') await ctx.resume(); } catch {}
+
+  const sampleRate = ctx.sampleRate;
+  const source = ctx.createMediaStreamSource(stream);
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 2048;
+  const processor = ctx.createScriptProcessor(4096, 1, 1);
+  const silenciador = ctx.createGain();
+  silenciador.gain.value = 0; // que el procesador corra sin que se escuche el micrófono
+
+  const chunks = [];
+  let grabando = true;
+  let huboVoz = false;
+  let ultimoConVoz = Date.now();
+  const inicio = Date.now();
+
+  const UMBRAL_VOZ = 0.012;     // por debajo de esto = silencio
+  const SILENCIO_CORTE = 1500;  // ms de silencio (tras hablar) para mandar solo
+  const MAX_GRABACION = 15000;  // ms tope duro
+  const SIN_VOZ_TIMEOUT = 7000; // ms: si nunca habló, cortar sin mandar nada
+
+  processor.onaudioprocess = (e) => {
+    if (!grabando) return;
+    const entrada = e.inputBuffer.getChannelData(0);
+    chunks.push(new Float32Array(entrada)); // copia
+  };
+
+  source.connect(analyser);
+  source.connect(processor);
+  processor.connect(silenciador);
+  silenciador.connect(ctx.destination);
+
+  const datosVol = new Uint8Array(analyser.fftSize);
+
+  const finalizar = async (mandar) => {
+    if (!grabando) return;
+    grabando = false;
+    clearInterval(poller);
+
+    // Soltar todo y APAGAR el micrófono físicamente (truco iOS)
+    try { processor.disconnect(); } catch {}
+    try { analyser.disconnect(); } catch {}
+    try { source.disconnect(); } catch {}
+    try { silenciador.disconnect(); } catch {}
+    try { stream.getTracks().forEach(t => t.stop()); } catch {}
+    try { if (ctx.state === 'running') ctx.suspend(); } catch {}
+
+    if (!mandar || !huboVoz || chunks.length === 0) {
+      onFin?.();
+      return;
+    }
+
+    // Unir los pedacitos en un solo Float32Array
+    let largo = 0;
+    for (const c of chunks) largo += c.length;
+    const todo = new Float32Array(largo);
+    let off = 0;
+    for (const c of chunks) { todo.set(c, off); off += c.length; }
+
+    // Resamplear a 16k -> Int16 (LINEAR16) -> base64
+    const a16 = resamplearA16k(todo, sampleRate);
+    const int16 = floatAInt16(a16);
+    const base64 = int16ABase64(int16);
+
+    try {
+      const resp = await fetch('/api/transcribir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audio: base64, sampleRate: 16000 })
+      });
+      const data = await resp.json();
+      const texto = (data && data.texto) ? data.texto.trim() : '';
+      if (texto) onResultado?.(texto);
+      else onFin?.();
+    } catch (err) {
+      console.warn('Error al transcribir:', err);
+      onError?.('transcripcion');
+    }
+  };
+
+  // Vigilar el volumen para cortar solo cuando deja de hablar
+  const poller = setInterval(() => {
+    if (!grabando) return;
+    analyser.getByteTimeDomainData(datosVol);
+    let suma = 0;
+    for (let i = 0; i < datosVol.length; i++) {
+      const v = (datosVol[i] - 128) / 128;
+      suma += v * v;
+    }
+    const rms = Math.sqrt(suma / datosVol.length);
+    const ahora = Date.now();
+
+    if (rms > UMBRAL_VOZ) { huboVoz = true; ultimoConVoz = ahora; }
+
+    if (ahora - inicio > MAX_GRABACION) { finalizar(true); return; }
+    if (!huboVoz && ahora - inicio > SIN_VOZ_TIMEOUT) { finalizar(false); return; }
+    if (huboVoz && ahora - ultimoConVoz > SILENCIO_CORTE) { finalizar(true); return; }
+  }, 150);
+
+  return {
+    detener: () => finalizar(true)
+  };
 }
 
 // ─────────────────────────────────────────────────────────
 // 5. DISPONIBILIDAD
 // ─────────────────────────────────────────────────────────
 export const vozDisponible = {
-  hablar: true, // siempre, porque la voz premium funciona en todos lados
-  escuchar: typeof window !== 'undefined' &&
-    !!(window.SpeechRecognition || window.webkitSpeechRecognition)
+  hablar: true,
+  escuchar: typeof navigator !== 'undefined' &&
+    !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
 };
