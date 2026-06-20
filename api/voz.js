@@ -6,9 +6,9 @@
 // VOCES (se cambian acá fácil cuando quieras probar otras)
 //
 // Masculinas disponibles (Chirp 3 HD es-US):
-//   es-US-Chirp3-HD-Charon  → grave, serena (la más grave, pega con la cara) ← elegida
+//   es-US-Chirp3-HD-Charon  → grave, serena (la más grave, pega con la cara)
 //   es-US-Chirp3-HD-Orus    → rica, narrativa (cálida pero más aguda)
-//   es-US-Chirp3-HD-Puck    → brillante, expresiva (más viva)
+//   es-US-Chirp3-HD-Puck    → brillante, expresiva (más viva) ← buena para el Pancho pícaro
 //   es-US-Chirp3-HD-Fenrir  → enérgica, juvenil
 //
 // Femeninas disponibles:
@@ -20,9 +20,11 @@
 const VOZ_PANCHO = 'es-US-Chirp3-HD-Charon'; // masculina grave, pega con la cara de Pancho
 const VOZ_MELI   = 'es-US-Chirp3-HD-Gacrux'; // femenina cálida y dulce
 
-// Velocidad: 1.0 = natural, más bajo = más calmo/sereno. 0.92 da un tono
-// tranquilo, ideal para adultos mayores. Subí/bajá si querés probar.
-const VELOCIDAD = 0.92;
+// Velocidad de cada voz (1.0 = natural; más bajo = más lento/calmo).
+// Pancho va más rápido para que hable "de corrido" y no robótico.
+// Meli queda tranquila y dulce, como estaba.
+const VELOCIDAD_PANCHO = 1.05; // antes 0.92 (sonaba lento/robótico)
+const VELOCIDAD_MELI   = 0.92; // sin cambios
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -50,7 +52,7 @@ export default async function handler(req, res) {
     // La diferencia de voz entre Pancho y Meli ya viene dada por ser dos voces distintas.
     const esMeli = genero === 'female';
     const voiceName = esMeli ? VOZ_MELI : VOZ_PANCHO;
-    const speakingRate = VELOCIDAD;
+    const speakingRate = esMeli ? VELOCIDAD_MELI : VELOCIDAD_PANCHO;
     const apiKey = process.env.GOOGLE_TTS_API_KEY;
     if (!apiKey) {
       console.error('Falta GOOGLE_TTS_API_KEY en las variables de entorno');
