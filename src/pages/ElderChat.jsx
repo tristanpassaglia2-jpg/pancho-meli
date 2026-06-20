@@ -11,6 +11,125 @@ const PANCHO_AVATAR = '/pancho.jpg';
 const MELI_AVATAR = '/meli.jpg';
 
 // ───────────────────────────────────────────
+// ETIQUETAS INVISIBLES (música y viaje)
+// Pancho/Meli mandan [MUSICA: Artista - Canción] o [VIAJE: lugar].
+// Acá las sacamos del texto y las convertimos en reproductor/botón.
+// ───────────────────────────────────────────
+function parseMensaje(texto) {
+  let limpio = texto || '';
+  let musica = null;
+  let viaje = null;
+
+  const mMus = limpio.match(/\[MUSICA:\s*([^\]]+)\]/i);
+  if (mMus) musica = mMus[1].trim();
+
+  const mVia = limpio.match(/\[VIAJE:\s*([^\]]+)\]/i);
+  if (mVia) viaje = mVia[1].trim();
+
+  limpio = limpio
+    .replace(/\[MUSICA:\s*[^\]]+\]/gi, '')
+    .replace(/\[VIAJE:\s*[^\]]+\]/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  return { limpio, musica, viaje };
+}
+
+// Reproductor de YouTube embebido en el chat
+function ReproductorMusica({ query }) {
+  const [videoId, setVideoId] = useState(null);
+  const [estado, setEstado] = useState('cargando'); // cargando | listo | error
+
+  useEffect(() => {
+    let activo = true;
+    (async () => {
+      try {
+        const resp = await fetch('/api/buscar-musica', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query })
+        });
+        const data = await resp.json();
+        if (!activo) return;
+        if (data && data.videoId) { setVideoId(data.videoId); setEstado('listo'); }
+        else setEstado('error');
+      } catch {
+        if (activo) setEstado('error');
+      }
+    })();
+    return () => { activo = false; };
+  }, [query]);
+
+  if (estado === 'cargando') {
+    return (
+      <div style={{
+        marginTop: 8, padding: '12px 16px', borderRadius: 14,
+        background: '#FFF8E1', border: '1px solid #EFE3C4',
+        color: '#7a5a2a', fontSize: 15
+      }}>
+        🎵 Buscando la canción...
+      </div>
+    );
+  }
+
+  if (estado === 'error' || !videoId) {
+    return (
+      <a
+        href={`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          marginTop: 8, padding: '14px 18px', borderRadius: 14,
+          background: '#C25E3C', color: '#fff', fontSize: 16, fontWeight: 700,
+          textDecoration: 'none'
+        }}
+      >
+        🎵 Escuchar "{query}" en YouTube
+      </a>
+    );
+  }
+
+  return (
+    <div style={{
+      marginTop: 8, borderRadius: 14, overflow: 'hidden',
+      border: '1px solid #EFE3C4', background: '#000'
+    }}>
+      <iframe
+        width="100%"
+        height="200"
+        src={`https://www.youtube.com/embed/${videoId}`}
+        title={query}
+        frameBorder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        style={{ display: 'block', border: 'none' }}
+      ></iframe>
+    </div>
+  );
+}
+
+// Botón grande para "viajar" a un lugar con Google Earth
+function BotonViaje({ lugar }) {
+  const url = `https://earth.google.com/web/search/${encodeURIComponent(lugar)}`;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        marginTop: 8, padding: '14px 18px', borderRadius: 14,
+        background: '#075E54', color: '#fff', fontSize: 17, fontWeight: 700,
+        textDecoration: 'none'
+      }}
+    >
+      🌎 Llevame a {lugar}
+    </a>
+  );
+}
+
+// ───────────────────────────────────────────
 // BLOQUE B — Huella única de este celular.
 // ───────────────────────────────────────────
 function obtenerDeviceId() {
@@ -164,11 +283,13 @@ export default function ElderChat() {
   const now = () => new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 
   // Cuando llega un mensaje nuevo del compañero y la voz está activada, leerlo
+  // (sacamos las etiquetas invisibles antes de que la voz lo lea)
   useEffect(() => {
     if (!vozActivada || messages.length === 0) return;
     const ultimo = messages[messages.length - 1];
     if (ultimo.role === 'companion') {
-      hablar(ultimo.text, companionGender, {
+      const { limpio } = parseMensaje(ultimo.text);
+      hablar(limpio, companionGender, {
         onStart: () => setHablando(true),
         onEnd: () => setHablando(false)
       });
@@ -592,20 +713,27 @@ export default function ElderChat() {
 
       {/* Mensajes */}
       <main className="chat-messages">
-        {messages.map(msg => (
-          <div
-            key={msg.id}
-            className={`chat-bubble ${msg.role === 'companion' ? 'companion' : 'elder'} animate-fade`}
-          >
-            {msg.role === 'companion' && (
-              <div className="chat-bubble-avatar"><img src={avatar} alt={companionName} /></div>
-            )}
-            <div className="chat-bubble-content">
-              <p className="chat-bubble-text">{msg.text}</p>
-              <span className="chat-bubble-time">{msg.time}</span>
+        {messages.map(msg => {
+          const parsed = msg.role === 'companion'
+            ? parseMensaje(msg.text)
+            : { limpio: msg.text, musica: null, viaje: null };
+          return (
+            <div
+              key={msg.id}
+              className={`chat-bubble ${msg.role === 'companion' ? 'companion' : 'elder'} animate-fade`}
+            >
+              {msg.role === 'companion' && (
+                <div className="chat-bubble-avatar"><img src={avatar} alt={companionName} /></div>
+              )}
+              <div className="chat-bubble-content">
+                {parsed.limpio && <p className="chat-bubble-text">{parsed.limpio}</p>}
+                {parsed.musica && <ReproductorMusica query={parsed.musica} />}
+                {parsed.viaje && <BotonViaje lugar={parsed.viaje} />}
+                <span className="chat-bubble-time">{msg.time}</span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {isTyping && (
           <div className="chat-bubble companion escribiendo animate-fade">
