@@ -109,23 +109,51 @@ function ReproductorMusica({ query }) {
   );
 }
 
-// Botón grande para "viajar" a un lugar con Google Earth
+// Viaje: vista aérea satelital que se carga SOLA dentro del chat (sin tocar nada),
+// más un botón opcional al Google Earth 3D completo (que Google no deja embeber).
 function BotonViaje({ lugar }) {
-  const url = `https://earth.google.com/web/search/${encodeURIComponent(lugar)}`;
+  // Embed legado de Google Maps: NO necesita API key, satelital (t=k), se carga solo.
+  const mapaUrl = `https://maps.google.com/maps?q=${encodeURIComponent(lugar)}&t=k&z=13&output=embed`;
+  // Google Earth 3D (vuelo inclinado): no se puede embeber, se abre en pestaña aparte.
+  const earth3dUrl = `https://earth.google.com/web/search/${encodeURIComponent(lugar)}`;
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      style={{
+    <div style={{ marginTop: 8 }}>
+      <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-        marginTop: 8, padding: '14px 18px', borderRadius: 14,
-        background: '#075E54', color: '#fff', fontSize: 17, fontWeight: 700,
-        textDecoration: 'none'
-      }}
-    >
-      🌎 Llevame a {lugar}
-    </a>
+        padding: '10px 16px', borderRadius: '14px 14px 0 0',
+        background: '#075E54', color: '#fff', fontSize: 16, fontWeight: 700
+      }}>
+        🌎 Estás paseando por {lugar}
+      </div>
+      <div style={{
+        borderRadius: '0 0 14px 14px', overflow: 'hidden',
+        border: '1px solid #EFE3C4', borderTop: 'none', background: '#000'
+      }}>
+        <iframe
+          title={`Vista aérea de ${lugar}`}
+          width="100%"
+          height="240"
+          frameBorder="0"
+          style={{ display: 'block', border: 'none' }}
+          src={mapaUrl}
+          loading="lazy"
+          allowFullScreen
+        ></iframe>
+      </div>
+      <a
+        href={earth3dUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          marginTop: 6, padding: '10px 14px', borderRadius: 12,
+          background: '#FFF8E1', border: '1px solid #EFE3C4', color: '#075E54',
+          fontSize: 15, fontWeight: 700, textDecoration: 'none'
+        }}
+      >
+        🛰️ Verlo en 3D, como desde un avión
+      </a>
+    </div>
   );
 }
 
