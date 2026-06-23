@@ -7,8 +7,8 @@ import { avisarAFamilia, mensajeTranquilizador } from '../lib/aviso-familia';
 import { obtenerEstadoPorElder } from '../lib/suscripcion';
 
 // Imágenes reales de Pancho y Meli (están en la carpeta public)
-const PANCHO_AVATAR = '/pancho.jpg';
-const MELI_AVATAR = '/meli.jpg';
+const PANCHO_AVATAR = '/panchoarg2.jpg';
+const MELI_AVATAR = '/meliarg.jpg';
 
 // ───────────────────────────────────────────
 // ETIQUETAS INVISIBLES (música y viaje)
@@ -568,9 +568,9 @@ export default function ElderChat() {
       <div className="setup-screen">
         <div className="setup-card animate-slide">
           <div className="setup-avatars">
-            <img className="setup-avatar-img" src="/pancho.jpg" alt="Pancho" />
+            <img className="setup-avatar-img" src="/panchoarg2.jpg" alt="Pancho" />
             <span className="setup-ampersand">&</span>
-            <img className="setup-avatar-img" src="/meli.jpg" alt="Meli" />
+            <img className="setup-avatar-img" src="/meliarg.jpg" alt="Meli" />
           </div>
           <h1 className="setup-title">Pancho&Meli</h1>
           <p className="setup-subtitle">Tu compañero/a de charlas de todos los días</p>
@@ -593,7 +593,7 @@ export default function ElderChat() {
                 className={`companion-option ${companionGender === 'male' ? 'active' : ''}`}
                 onClick={() => { setCompanionGender('male'); setCompanionName('Pancho'); }}
               >
-                <img className="companion-option-img" src="/pancho.jpg" alt="Pancho" />
+                <img className="companion-option-img" src="/panchoarg2.jpg" alt="Pancho" />
                 <span className="companion-option-name">Pancho</span>
               </button>
               <button
@@ -601,7 +601,7 @@ export default function ElderChat() {
                 className={`companion-option ${companionGender === 'female' ? 'active' : ''}`}
                 onClick={() => { setCompanionGender('female'); setCompanionName('Meli'); }}
               >
-                <img className="companion-option-img" src="/meli.jpg" alt="Meli" />
+                <img className="companion-option-img" src="/meliarg.jpg" alt="Meli" />
                 <span className="companion-option-name">Meli</span>
               </button>
             </div>
