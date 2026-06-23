@@ -48,34 +48,24 @@ export default function FamilySetup() {
       const slug = generarSlug();
       const gender = companion === 'Pancho' ? 'male' : 'female';
 
-      // Crear el abuelo en la tabla elders
-      const { data: elder, error: elderErr } = await supabase
-        .from('elders')
-        .insert({
-          nombre: nombreAbuelo.trim(),
-          edad: edad ? parseInt(edad) : null,
-          pais,
-          companion_name: companion,
-          companion_gender: gender,
-          slug
-        })
-        .select()
-        .single();
+      // Crear abuelo + familiar juntos vía RPC segura (atómico)
+      const { data, error: rpcErr } = await supabase.rpc('registrar_abuelo_y_familiar', {
+        p_user_id: usuario.id,
+        p_nombre_abuelo: nombreAbuelo.trim(),
+        p_edad: edad ? parseInt(edad) : null,
+        p_pais: pais,
+        p_companion_name: companion,
+        p_companion_gender: gender,
+        p_slug: slug,
+        p_nombre_familiar: contactoNombre.trim(),
+        p_contacto_nombre: contactoNombre.trim(),
+        p_contacto_telefono: contactoTel.trim()
+      });
 
-      if (elderErr) throw elderErr;
-
-      // Guardar la relación familiar-abuelo
-      const { error: famErr } = await supabase
-        .from('familiares')
-        .insert({
-          user_id: usuario.id,
-          nombre_familiar: contactoNombre.trim(),
-          elder_id: elder.id,
-          contacto_nombre: contactoNombre.trim(),
-          contacto_telefono: contactoTel.trim()
-        });
-
-      if (famErr) throw famErr;
+      if (rpcErr) throw rpcErr;
+      if (!data || !data.ok) {
+        throw new Error(data?.error || 'No se pudo guardar');
+      }
 
       // Generar el link para el abuelo
       const base = window.location.origin;
@@ -258,7 +248,6 @@ const S = {
     borderRadius: 14, fontSize: '1.15rem', fontWeight: 700, cursor: 'pointer',
     fontFamily: "'Segoe UI', sans-serif", marginTop: 8
   },
-  // Pantalla de éxito (link generado)
   exitoIcon: { fontSize: '3.5rem', textAlign: 'center', marginBottom: 8 },
   linkBox: {
     background: '#F0F0F0', borderRadius: 12, padding: '1rem', marginBottom: 16,
