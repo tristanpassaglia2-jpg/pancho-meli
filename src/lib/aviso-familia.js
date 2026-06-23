@@ -3,9 +3,9 @@
 // La ÚNICA excepción a la confidencialidad: Pancho no cuenta
 // las charlas, pero SÍ puede pedir ayuda si el abuelo se siente mal.
 //
-// 1) Registra el pedido de ayuda en Supabase (alertas_familia).
-// 2) Busca el teléfono del familiar (tabla familiares) y le manda
-//    un WhatsApp REAL vía /api/avisar-whatsapp.
+// 1) Registra el pedido de ayuda vía RPC segura (registrar_alerta_familia).
+// 2) Busca el teléfono del familiar vía RPC segura (obtener_familiar_por_elder)
+//    y le manda un WhatsApp REAL vía /api/avisar-whatsapp.
 // ═══════════════════════════════════════════════════════
 import { supabase } from './supabase';
 
@@ -23,21 +23,19 @@ export async function avisarAFamilia(elderId, nombreAbuelo, motivo = 'No me sien
     return resultado;
   }
 
-  // 1) Registrar la alerta en la base (queda como historial)
+  // 1) Registrar la alerta en la base vía RPC segura
   try {
-    const { error } = await supabase
-      .from('alertas_familia')
-      .insert({
-        elder_id: elderId,
-        nombre_abuelo: nombreAbuelo,
-        motivo,
-        estado: 'pendiente'
-      });
-    if (!error) {
+    const { data, error } = await supabase.rpc('registrar_alerta_familia', {
+      p_elder_id: elderId,
+      p_nombre_abuelo: nombreAbuelo,
+      p_motivo: motivo
+    });
+
+    if (!error && data && data.ok) {
       resultado.ok = true;
       resultado.mensaje = 'registrado';
     } else {
-      console.warn('No se pudo registrar la alerta:', error);
+      console.warn('No se pudo registrar la alerta:', error || data);
       resultado.mensaje = 'error_registro';
     }
   } catch (err) {
@@ -45,13 +43,11 @@ export async function avisarAFamilia(elderId, nombreAbuelo, motivo = 'No me sien
     resultado.mensaje = 'error_registro';
   }
 
-  // 2) Buscar el teléfono del familiar y mandarle el WhatsApp real
+  // 2) Buscar el teléfono del familiar vía RPC segura y mandarle el WhatsApp real
   try {
-    const { data: fams, error: errFam } = await supabase
-      .from('familiares')
-      .select('contacto_telefono, contacto_nombre')
-      .eq('elder_id', elderId)
-      .limit(1);
+    const { data: fams, error: errFam } = await supabase.rpc('obtener_familiar_por_elder', {
+      p_elder_id: elderId
+    });
 
     const familiar = fams && fams[0];
 
@@ -66,7 +62,9 @@ export async function avisarAFamilia(elderId, nombreAbuelo, motivo = 'No me sien
           nombreAbuelo
         })
       });
+
       const data = await resp.json().catch(() => ({}));
+
       if (resp.ok && data.ok) {
         resultado.whatsapp = true;
       } else {
