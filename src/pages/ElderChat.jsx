@@ -6,15 +6,9 @@ import { obtenerOCrearAbuelo, cargarHistorial, guardarMensaje, getDeviceElderId 
 import { avisarAFamilia, mensajeTranquilizador } from '../lib/aviso-familia';
 import { obtenerEstadoPorElder } from '../lib/suscripcion';
 
-// Imágenes reales de Pancho y Meli (están en la carpeta public)
 const PANCHO_AVATAR = '/panchoarg2.jpg';
 const MELI_AVATAR = '/meliarg.jpg';
 
-// ───────────────────────────────────────────
-// ETIQUETAS INVISIBLES (música y viaje)
-// Pancho/Meli mandan [MUSICA: Artista - Canción] o [VIAJE: lugar].
-// Acá las sacamos del texto y las convertimos en reproductor/botón.
-// ───────────────────────────────────────────
 function parseMensaje(texto) {
   let limpio = texto || '';
   let musica = null;
@@ -35,10 +29,9 @@ function parseMensaje(texto) {
   return { limpio, musica, viaje };
 }
 
-// Reproductor de YouTube embebido en el chat
 function ReproductorMusica({ query }) {
   const [videoId, setVideoId] = useState(null);
-  const [estado, setEstado] = useState('cargando'); // cargando | listo | error
+  const [estado, setEstado] = useState('cargando');
 
   useEffect(() => {
     let activo = true;
@@ -75,7 +68,7 @@ function ReproductorMusica({ query }) {
   if (estado === 'error' || !videoId) {
     return (
       
-        href={`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`}
+        href={'https://www.youtube.com/results?search_query=' + encodeURIComponent(query)}
         target="_blank"
         rel="noopener noreferrer"
         style={{
@@ -98,7 +91,7 @@ function ReproductorMusica({ query }) {
       <iframe
         width="100%"
         height="200"
-        src={`https://www.youtube.com/embed/${videoId}`}
+        src={'https://www.youtube.com/embed/' + videoId}
         title={query}
         frameBorder="0"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -109,11 +102,8 @@ function ReproductorMusica({ query }) {
   );
 }
 
-// Viaje: vista aérea satelital que se carga SOLA dentro del chat.
-// Sin botón externo a Google Earth: queremos cero fricción para el abuelo.
 function BotonViaje({ lugar }) {
-  // Embed legado de Google Maps: NO necesita API key, satelital (t=k), se carga solo.
-  const mapaUrl = `https://maps.google.com/maps?q=${encodeURIComponent(lugar)}&t=k&z=13&output=embed`;
+  const mapaUrl = 'https://maps.google.com/maps?q=' + encodeURIComponent(lugar) + '&t=k&z=13&output=embed';
   return (
     <div style={{ marginTop: 8 }}>
       <div style={{
@@ -128,7 +118,7 @@ function BotonViaje({ lugar }) {
         border: '1px solid #EFE3C4', borderTop: 'none', background: '#000'
       }}>
         <iframe
-          title={`Vista aérea de ${lugar}`}
+          title={'Vista aérea de ' + lugar}
           width="100%"
           height="240"
           frameBorder="0"
@@ -142,9 +132,6 @@ function BotonViaje({ lugar }) {
   );
 }
 
-// ───────────────────────────────────────────
-// BLOQUE B — Huella única de este celular.
-// ───────────────────────────────────────────
 function obtenerDeviceId() {
   try {
     let id = localStorage.getItem('pancho_meli_device_id');
@@ -174,20 +161,17 @@ export default function ElderChat() {
   const [mostrarAviso, setMostrarAviso] = useState(false);
   const [suscripcion, setSuscripcion] = useState(null);
   const [bloqueado, setBloqueado] = useState(false);
-  // ── Voz ──
   const [vozActivada, setVozActivada] = useState(true);
   const [escuchando, setEscuchando] = useState(false);
   const [hablando, setHablando] = useState(false);
-  const grabadorRef = useRef(null); // controlador de la grabación en curso
+  const grabadorRef = useRef(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
   const avatar = companionGender === 'male' ? PANCHO_AVATAR : MELI_AVATAR;
 
-  // Precargar voces del navegador al montar
   useEffect(() => { precargarVoces(); }, []);
 
-  // ── DESBLOQUEAR AUDIO en el primer toque del usuario (clave para iOS/Safari) ──
   useEffect(() => {
     const desbloquear = () => desbloquearAudioiOS();
     document.addEventListener('touchend', desbloquear, { once: true });
@@ -198,7 +182,6 @@ export default function ElderChat() {
     };
   }, []);
 
-  // ── APAGAR EL MICRÓFONO al salir del chat o minimizar la app ──
   useEffect(() => {
     const apagarTodo = () => {
       if (grabadorRef.current) {
@@ -218,7 +201,6 @@ export default function ElderChat() {
     };
   }, []);
 
-  // Al abrir: si viene por link del familiar (slug) o si ya tiene sesión en el dispositivo
   useEffect(() => {
     (async () => {
       try {
@@ -250,8 +232,8 @@ export default function ElderChat() {
               setMessages(hist);
             } else {
               const g = (data.companion_gender || 'male') === 'male'
-                ? `¡Hola ${data.nombre}! Soy Pancho, tu compañero de charlas. ¡Qué bueno conocerte! 😄 ¿Cómo andás?`
-                : `¡Hola ${data.nombre}! Soy Meli, tu compañera de charlas. ¡Qué alegría conocerte! 😊 ¿Cómo estás?`;
+                ? '¡Hola ' + data.nombre + '! Soy Pancho, tu compañero de charlas. ¡Qué bueno conocerte! 😄 ¿Cómo andás?'
+                : '¡Hola ' + data.nombre + '! Soy Meli, tu compañera de charlas. ¡Qué alegría conocerte! 😊 ¿Cómo estás?';
               setMessages([{ id: 1, role: 'companion', text: g, time: now() }]);
               guardarMensaje(data.id, 'companion', g);
             }
@@ -280,14 +262,13 @@ export default function ElderChat() {
             setMessages(hist);
           } else {
             const g = (data.companion_gender || 'male') === 'male'
-              ? `¡Hola de nuevo ${data.nombre}! Soy Pancho. ¡Qué bueno verte otra vez! ¿Cómo venís? 😄`
-              : `¡Hola de nuevo ${data.nombre}! Soy Meli. ¡Qué alegría que volviste! ¿Cómo andás? 😊`;
+              ? '¡Hola de nuevo ' + data.nombre + '! Soy Pancho. ¡Qué bueno verte otra vez! ¿Cómo venís? 😄'
+              : '¡Hola de nuevo ' + data.nombre + '! Soy Meli. ¡Qué alegría que volviste! ¿Cómo andás? 😊';
             setMessages([{ id: 1, role: 'companion', text: g, time: now() }]);
           }
           setIsSetup(true);
         }
       } catch {
-        // si falla, dejamos el setup normal
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -295,8 +276,6 @@ export default function ElderChat() {
 
   const now = () => new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 
-  // Cuando llega un mensaje nuevo del compañero y la voz está activada, leerlo
-  // (sacamos las etiquetas invisibles antes de que la voz lo lea)
   useEffect(() => {
     if (!vozActivada || messages.length === 0) return;
     const ultimo = messages[messages.length - 1];
@@ -310,18 +289,14 @@ export default function ElderChat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
-  // Silenciar/activar voz
   const toggleVoz = () => {
     if (vozActivada) { callar(); setHablando(false); }
     setVozActivada(!vozActivada);
   };
 
-  // El abuelo habla (voz a texto) — graba y manda a Google al quedarse callado
   const escucharAlAbuelo = async () => {
-    // Toque del usuario: desbloquear audio (clave iOS)
     desbloquearAudioiOS();
 
-    // Si ya está grabando, cortar y mandar lo que haya
     if (escuchando) {
       if (grabadorRef.current) {
         grabadorRef.current.detener();
@@ -330,7 +305,6 @@ export default function ElderChat() {
       return;
     }
 
-    // Cortar la voz de Pancho si está sonando (libera el canal de audio)
     callar();
     setHablando(false);
     setEscuchando(true);
@@ -363,12 +337,10 @@ export default function ElderChat() {
     }
   };
 
-  // Auto-scroll al último mensaje
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  // Setup: crea el abuelo en Supabase y arranca la charla
   const handleSetup = async (e) => {
     e.preventDefault();
     if (!elderName.trim()) return;
@@ -383,18 +355,16 @@ export default function ElderChat() {
     if (abuelo) setElderId(abuelo.id);
 
     const greeting = companionGender === 'male'
-      ? `¡Hola ${elderName}! Soy Pancho, tu nuevo compañero de charlas. Me dijeron que te gusta conversar, ¡así que ya tenemos tema para rato! 😄 ¿Cómo andás hoy?`
-      : `¡Hola ${elderName}! Soy Meli, tu nueva compañera de charlas. Me contaron que sos una persona muy interesante, ¡así que acá estoy para conocerte! 😊 ¿Cómo estás hoy?`;
+      ? '¡Hola ' + elderName + '! Soy Pancho, tu nuevo compañero de charlas. Me dijeron que te gusta conversar, ¡así que ya tenemos tema para rato! 😄 ¿Cómo andás hoy?'
+      : '¡Hola ' + elderName + '! Soy Meli, tu nueva compañera de charlas. Me contaron que sos una persona muy interesante, ¡así que acá estoy para conocerte! 😊 ¿Cómo estás hoy?';
 
     setMessages([{ id: 1, role: 'companion', text: greeting, time: now() }]);
 
     if (abuelo) guardarMensaje(abuelo.id, 'companion', greeting);
   };
 
-  // Enviar mensaje (desde el input de texto)
   const handleSend = () => handleSendText(input);
 
-  // Enviar un texto (sirve tanto para tipeo como para voz)
   const handleSendText = async (rawText) => {
     desbloquearAudioiOS();
     const text = (rawText || '').trim();
@@ -464,7 +434,320 @@ export default function ElderChat() {
     }
   };
 
-  // El abuelo confirma que quiere avisar a su familia
   const confirmarAviso = async () => {
     setMostrarAviso(false);
     await avisarAFamilia(elderId, elderName, 'El abuelo avisó que no se siente bien');
+    const msg = mensajeTranquilizador(companionGender, elderName);
+    const companionMsg = { id: Date.now(), role: 'companion', text: msg, time: now() };
+    setMessages(prev => [...prev, companionMsg]);
+    if (elderId) guardarMensaje(elderId, 'companion', msg);
+  };
+
+  const cambiarCompanero = async () => {
+    const nuevoGender = companionGender === 'male' ? 'female' : 'male';
+    const nuevoName = nuevoGender === 'male' ? 'Pancho' : 'Meli';
+
+    setCompanionGender(nuevoGender);
+    setCompanionName(nuevoName);
+
+    if (elderId) {
+      try {
+        const { supabase } = await import('../lib/supabase');
+        await supabase.from('elders').update({
+          companion_name: nuevoName,
+          companion_gender: nuevoGender
+        }).eq('id', elderId);
+      } catch {}
+    }
+
+    const transicion = nuevoGender === 'male'
+      ? '¡Hola ' + elderName + '! Soy Pancho. Meli me dijo que estaban charlando, así que acá me sumo yo. ¿Cómo andás?'
+      : '¡Hola ' + elderName + '! Soy Meli. Pancho me contó que estaban de charla, así que vine a hacerte compañía. ¿Cómo estás?';
+
+    const msg = { id: Date.now(), role: 'companion', text: transicion, time: now() };
+    setMessages(prev => [...prev, msg]);
+    if (elderId) guardarMensaje(elderId, 'companion', transicion);
+  };
+
+  const games = [
+    { id: 'trivia', emoji: '🌍', name: 'Trivia' },
+    { id: 'refran', emoji: '📖', name: 'Refranes' },
+    { id: 'palabra', emoji: '🧠', name: 'Palabras' },
+    { id: 'vf', emoji: '🎭', name: '¿V o F?' },
+    { id: 'cuentas', emoji: '🔢', name: 'Cuentas' },
+    { id: 'historia', emoji: '📝', name: 'Contame' },
+  ];
+
+  const startGame = (gameId) => {
+    const gameNames = {
+      trivia: 'Trivia del Día',
+      refran: 'Completá el Refrán',
+      palabra: 'Palabra Encadenada',
+      vf: '¿Verdadero o Falso?',
+      cuentas: 'Cuentas Rápidas',
+      historia: 'Contame una Historia'
+    };
+    setInput('¡Quiero jugar a ' + gameNames[gameId] + '!');
+    setShowGames(false);
+    setTimeout(() => handleSend(), 100);
+  };
+
+  if (bloqueado) {
+    return (
+      <div className="setup-screen">
+        <div className="setup-card" style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '3.5rem', marginBottom: 8 }}>🔒</div>
+          <h1 className="setup-title">Este acceso ya está en uso</h1>
+          <p style={{ color: '#5E4F45', fontSize: '1.05rem', lineHeight: 1.6, margin: '12px 0' }}>
+            Este enlace ya se está usando en otro celular. Cada cuenta de
+            Pancho&Meli funciona en un solo teléfono.
+          </p>
+          <div style={{
+            background: '#FFF8E1', border: '1px solid #EFE3C4', borderRadius: 14,
+            padding: '1rem', fontSize: '0.95rem', color: '#7a5a2a', lineHeight: 1.5, marginTop: 8
+          }}>
+            Si cambiaste de teléfono, pedile a tu familiar que te genere un acceso nuevo. 💛
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isSetup) {
+    return (
+      <div className="setup-screen">
+        <div className="setup-card animate-slide">
+          <div className="setup-avatars">
+            <img className="setup-avatar-img" src="/panchoarg2.jpg" alt="Pancho" />
+            <span className="setup-ampersand">&</span>
+            <img className="setup-avatar-img" src="/meliarg.jpg" alt="Meli" />
+          </div>
+          <h1 className="setup-title">Pancho&Meli</h1>
+          <p className="setup-subtitle">Tu compañero/a de charlas de todos los días</p>
+
+          <form onSubmit={handleSetup} className="setup-form">
+            <label className="setup-label">¿Cómo te llamás?</label>
+            <input
+              type="text"
+              className="input-elder"
+              placeholder="Tu nombre..."
+              value={elderName}
+              onChange={(e) => setElderName(e.target.value)}
+              autoFocus
+            />
+
+            <label className="setup-label mt-3">¿Con quién querés charlar?</label>
+            <div className="companion-choice">
+              <button
+                type="button"
+                className={'companion-option ' + (companionGender === 'male' ? 'active' : '')}
+                onClick={() => { setCompanionGender('male'); setCompanionName('Pancho'); }}
+              >
+                <img className="companion-option-img" src="/panchoarg2.jpg" alt="Pancho" />
+                <span className="companion-option-name">Pancho</span>
+              </button>
+              <button
+                type="button"
+                className={'companion-option ' + (companionGender === 'female' ? 'active' : '')}
+                onClick={() => { setCompanionGender('female'); setCompanionName('Meli'); }}
+              >
+                <img className="companion-option-img" src="/meliarg.jpg" alt="Meli" />
+                <span className="companion-option-name">Meli</span>
+              </button>
+            </div>
+
+            <button type="submit" className="btn btn-primary setup-btn mt-4">
+              ¡Empezar a charlar! 💬
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="chat-screen">
+      <header className="chat-header">
+        <div className={'chat-header-avatar ' + (hablando ? 'hablando' : '')}><img src={avatar} alt={companionName} /></div>
+        <div className="chat-header-info">
+          <h1 className="chat-header-name">{companionName}</h1>
+          <span className="chat-header-status">
+            {isTyping ? 'Escribiendo...' : hablando ? '🔊 Hablando...' : 'En línea'}
+          </span>
+        </div>
+        {vozDisponible.hablar && (
+          <button
+            className="chat-header-voice"
+            onClick={toggleVoz}
+            title={vozActivada ? 'Silenciar voz' : 'Activar voz'}
+          >
+            {vozActivada ? '🔊' : '🔇'}
+          </button>
+        )}
+        <button
+          className="chat-header-games"
+          onClick={() => setShowGames(!showGames)}
+          title="Juegos"
+        >
+          🎮
+        </button>
+        <button
+          className="chat-header-sos"
+          onClick={() => setMostrarAviso(true)}
+          title="Avisar a mi familia"
+        >
+          🆘
+        </button>
+      </header>
+
+      <button
+        onClick={cambiarCompanero}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          gap: 8, width: '100%', border: 'none', cursor: 'pointer',
+          background: '#FFF8E1', borderBottom: '1px solid #EFE3C4',
+          padding: '11px 16px', fontFamily: 'inherit'
+        }}
+      >
+        <span style={{ fontSize: 15, color: '#5E4F45' }}>
+          Estás charlando con <b style={{ color: '#075E54' }}>{companionName}</b>
+        </span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: '#C25E3C' }}>
+          · Tocá para cambiar a {companionGender === 'male' ? 'Meli' : 'Pancho'} 🔄
+        </span>
+      </button>
+
+      {suscripcion && suscripcion.estado === 'trial' && suscripcion.diasRestantes <= 3 && suscripcion.diasRestantes > 0 && (
+        <div className="trial-banner">
+          ⏰ Te quedan {suscripcion.diasRestantes} {suscripcion.diasRestantes === 1 ? 'día' : 'días'} de prueba gratis
+        </div>
+      )}
+
+      {suscripcion && suscripcion.estado === 'vencida' && (
+        <div className="trial-vencido-overlay">
+          <div className="trial-vencido-card">
+            <div className="trial-vencido-emoji">💛</div>
+            <h2 className="trial-vencido-titulo">Tu prueba terminó</h2>
+            <p className="trial-vencido-texto">
+              Esperamos que hayas disfrutado las charlas con {companionName}.
+              Para seguir charlando, pedile a tu familiar que entre a la app
+              y active la suscripción.
+            </p>
+            <p className="trial-vencido-precio">ARS $13.500 / mes</p>
+            <a href="/suscribir" style={{
+              display: 'inline-block', marginTop: '1rem', padding: '0.9rem 1.8rem',
+              background: '#075E54', color: '#fff', borderRadius: 14,
+              fontSize: '1.1rem', fontWeight: 700, textDecoration: 'none'
+            }}>
+              Activar suscripción
+            </a>
+          </div>
+        </div>
+      )}
+
+      {mostrarAviso && (
+        <div className="aviso-overlay" onClick={() => setMostrarAviso(false)}>
+          <div className="aviso-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="aviso-emoji">💛</div>
+            <h2 className="aviso-titulo">¿Avisamos a tu familia?</h2>
+            <p className="aviso-texto">
+              Si no te sentís bien, le aviso a tu familia para que se comuniquen con vos.
+              No estás solo/a.
+            </p>
+            <button className="aviso-btn-si" onClick={confirmarAviso}>
+              Sí, avisá a mi familia
+            </button>
+            <button className="aviso-btn-no" onClick={() => setMostrarAviso(false)}>
+              No, estoy bien
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showGames && (
+        <div className="games-panel animate-slide">
+          <p className="games-title">¿A qué jugamos hoy? 🎲</p>
+          <div className="games-grid">
+            {games.map(g => (
+              <button
+                key={g.id}
+                className="game-btn"
+                onClick={() => startGame(g.id)}
+              >
+                <span className="game-btn-emoji">{g.emoji}</span>
+                <span className="game-btn-name">{g.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <main className="chat-messages">
+        {messages.map(msg => {
+          const parsed = msg.role === 'companion'
+            ? parseMensaje(msg.text)
+            : { limpio: msg.text, musica: null, viaje: null };
+          return (
+            <div
+              key={msg.id}
+              className={'chat-bubble ' + (msg.role === 'companion' ? 'companion' : 'elder') + ' animate-fade'}
+            >
+              {msg.role === 'companion' && (
+                <div className="chat-bubble-avatar"><img src={avatar} alt={companionName} /></div>
+              )}
+              <div className="chat-bubble-content">
+                {parsed.limpio && <p className="chat-bubble-text">{parsed.limpio}</p>}
+                {parsed.musica && <ReproductorMusica query={parsed.musica} />}
+                {parsed.viaje && <BotonViaje lugar={parsed.viaje} />}
+                <span className="chat-bubble-time">{msg.time}</span>
+              </div>
+            </div>
+          );
+        })}
+
+        {isTyping && (
+          <div className="chat-bubble companion escribiendo animate-fade">
+            <div className="chat-bubble-avatar"><img src={avatar} alt={companionName} /></div>
+            <div className="chat-bubble-content">
+              <div className="typing-indicator">
+                <span></span><span></span><span></span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </main>
+
+      <footer className="chat-input-bar">
+        {vozDisponible.escuchar && (
+          <button
+            className={'chat-mic-btn ' + (escuchando ? 'escuchando' : '')}
+            onClick={escucharAlAbuelo}
+            title={escuchando ? 'Escuchando... tocá para parar' : 'Hablar'}
+            disabled={isTyping}
+          >
+            {escuchando ? '🔴' : '🎤'}
+          </button>
+        )}
+        <input
+          ref={inputRef}
+          type="text"
+          className="chat-input"
+          placeholder={escuchando ? 'Te escucho...' : 'Escribile a ' + companionName + '...'}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={isTyping}
+        />
+        <button
+          className="chat-send-btn"
+          onClick={handleSend}
+          disabled={!input.trim() || isTyping}
+        >
+          ➤
+        </button>
+      </footer>
+    </div>
+  );
+}
