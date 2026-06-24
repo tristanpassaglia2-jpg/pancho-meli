@@ -67,8 +67,8 @@ function ReproductorMusica({ query }) {
 
   if (estado === 'error' || !videoId) {
     return (
-      
-        href={'https://www.youtube.com/results?search_query=' + encodeURIComponent(query)}
+      <a
+        href={"https://www.youtube.com/results?search_query=" + encodeURIComponent(query)}
         target="_blank"
         rel="noopener noreferrer"
         style={{
@@ -91,7 +91,7 @@ function ReproductorMusica({ query }) {
       <iframe
         width="100%"
         height="200"
-        src={'https://www.youtube.com/embed/' + videoId}
+        src={"https://www.youtube.com/embed/" + videoId}
         title={query}
         frameBorder="0"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -103,7 +103,7 @@ function ReproductorMusica({ query }) {
 }
 
 function BotonViaje({ lugar }) {
-  const mapaUrl = 'https://maps.google.com/maps?q=' + encodeURIComponent(lugar) + '&t=k&z=13&output=embed';
+  const mapaUrl = "https://maps.google.com/maps?q=" + encodeURIComponent(lugar) + "&t=k&z=13&output=embed";
   return (
     <div style={{ marginTop: 8 }}>
       <div style={{
@@ -118,7 +118,7 @@ function BotonViaje({ lugar }) {
         border: '1px solid #EFE3C4', borderTop: 'none', background: '#000'
       }}>
         <iframe
-          title={'Vista aérea de ' + lugar}
+          title={"Vista aérea de " + lugar}
           width="100%"
           height="240"
           frameBorder="0"
