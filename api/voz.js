@@ -37,11 +37,15 @@ export default async function handler(req, res) {
     if (!texto || !texto.trim()) {
       return res.status(400).json({ error: 'Falta el texto' });
     }
-    // Limpiar el texto: sacar links y emojis para que no los "lea"
+    // Limpiar el texto: sacar links, emojis y risas escritas para que la voz no las "lea"
     const limpio = texto
       .replace(/https?:\/\/[^\s]+/g, '')
       .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/gu, '')
       .replace(/\*\*/g, '')
+      // Sacar risas escritas (jaja, jeje, jiji, jojo, jaaja, etc.) que la voz leería letra por letra
+      .replace(/\b[jaeiou]*(?:j[aeiou]+){2,}h?\b/gi, '')
+      .replace(/\bja+(?:\s*ja+)+\b/gi, '')
+      .replace(/\s+([,.!?])/g, '$1')
       .replace(/\s+/g, ' ')
       .trim();
     if (!limpio) {
