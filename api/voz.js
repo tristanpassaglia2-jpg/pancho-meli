@@ -20,11 +20,11 @@
 const VOZ_PANCHO = 'es-US-Chirp3-HD-Charon'; // masculina grave, pega con la cara de Pancho
 const VOZ_MELI   = 'es-US-Chirp3-HD-Gacrux'; // femenina cálida y dulce
 
-// Velocidad de cada voz (1.0 = natural; más bajo = más lento/calmo).
-// Pancho va más rápido para que hable "de corrido" y no robótico.
-// Meli queda tranquila y dulce, como estaba.
-const VELOCIDAD_PANCHO = 1.05; // antes 0.92 (sonaba lento/robótico)
-const VELOCIDAD_MELI   = 0.92; // sin cambios
+// Velocidad de cada voz (1.0 = natural; más alto = más ágil).
+// Subidas para que no suenen lentas: los abuelos entienden bien igual,
+// pero la conversación se siente más viva y natural.
+const VELOCIDAD_PANCHO = 1.18; // antes 1.05 (sonaba algo lento)
+const VELOCIDAD_MELI   = 1.15; // antes 0.92 (sonaba muy lento)
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
