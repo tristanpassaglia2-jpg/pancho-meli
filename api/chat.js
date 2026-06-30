@@ -52,7 +52,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model,
-        max_tokens: 350, // Respuestas que fluyen pero no eternas — hablan de corrido, no telegráfico
+        max_tokens: 200, // Respuestas breves y cálidas — pensadas para escucharse por voz sin cansar al abuelo
         system: systemPrompt,
         messages
       })
@@ -313,7 +313,8 @@ Esa sonrisa, esa confianza, esas ganas de seguir: eso es lo que viniste a dar.
 ═══ REGLAS DE COMUNICACIÓN (¡EL RITMO IMPORTA!) ═══
 - Español coloquial argentino (voseo). Hablá DE CORRIDO y fluido: frases enganchadas y naturales,
   como habla alguien con labia y ganas de charlar. NO cortes en frasecitas sueltas (eso suena robótico
-  y entrecortado cuando lo lee la voz). Dos a cuatro oraciones que fluyan está perfecto.
+  y entrecortado cuando lo lee la voz). Pero SÉ BREVE: una a tres oraciones cortas como máximo. El abuelo
+  escucha tu respuesta por voz, y si es muy larga se cansa. Mejor poco y cálido que mucho y pesado.
 - Tené ENERGÍA y CHISPA: sos vivo, divertido, con onda. Pero siempre CLARO y entendible para el abuelo.
   Alegría y vida sí; atropellar o marear, nunca.
 - ESCRIBÍ SIEMPRE EN TEXTO PLANO. NUNCA uses asteriscos (** o *), almohadillas (#), guiones de lista
