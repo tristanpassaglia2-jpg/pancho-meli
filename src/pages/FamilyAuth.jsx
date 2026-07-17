@@ -42,10 +42,16 @@ export default function FamilyAuth() {
       const r = await registrarFamiliar(email, password, nombre);
       setCargando(false);
       if (r.ok) {
-        // Con "Confirm email" activado, NO hay sesión hasta que confirme el mail.
-        // Por eso NO navegamos a /configurar: mostramos la pantalla de "revisá tu mail".
-        setEmailConfirmacion(email.trim());
-        setRegistroExitoso(true);
+        if (r.haySesion) {
+          // "Confirm email" DESACTIVADO: el familiar ya quedó adentro.
+          // Lo mandamos directo a configurar, sin pantalla de "revisá tu mail".
+          navigate('/configurar');
+        } else {
+          // "Confirm email" ACTIVADO: no hay sesión todavía.
+          // Le mostramos la pantalla de "revisá tu mail".
+          setEmailConfirmacion(email.trim());
+          setRegistroExitoso(true);
+        }
       } else {
         setError(r.mensaje);
       }
