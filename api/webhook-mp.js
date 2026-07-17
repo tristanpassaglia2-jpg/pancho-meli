@@ -2,13 +2,21 @@
 // PANCHO & MELI — WEBHOOK DE MERCADOPAGO
 // MercadoPago llama a esta URL cuando un pago se procesa.
 // Nosotros actualizamos la suscripción en nuestra base de datos.
+//
+// IMPORTANTE: este webhook corre en el servidor y NO tiene
+// un usuario logueado. Por eso usa la llave service_role
+// (SUPABASE_SERVICE_ROLE_KEY), que es la única que puede
+// escribir en la tabla suscripciones saltándose la seguridad
+// por-usuario (RLS). Con la llave pública/anon, el UPDATE
+// quedaba bloqueado en silencio y la suscripción NUNCA se
+// marcaba como activa aunque el pago fuera exitoso.
 // ═══════════════════════════════════════════════════════
 
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.VITE_SUPABASE_ANON_KEY
+  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 export default async function handler(req, res) {
