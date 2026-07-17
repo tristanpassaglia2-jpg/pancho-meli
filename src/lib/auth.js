@@ -4,11 +4,21 @@
 // familiar cree cuenta, entre y salga. NO manejamos
 // contraseñas a mano: lo hace Supabase de forma segura.
 //
-// IMPORTANTE (Bloque A): con "Confirm email" activado en
-// Supabase, el familiar NO tiene sesión hasta confirmar
-// el mail. Por eso el trial de 7 días YA NO se crea al
-// registrarse, sino la PRIMERA vez que entra (login),
-// que recién puede pasar después de confirmar el mail.
+// IMPORTANTE: este archivo funciona en LOS DOS casos, sin
+// importar cómo esté "Confirm email" en Supabase:
+//
+//  • Si "Confirm email" está DESACTIVADO: al registrarse,
+//    Supabase devuelve una sesión y el familiar YA queda
+//    adentro. En ese caso creamos el trial de 7 días acá
+//    mismo, en el registro.
+//
+//  • Si "Confirm email" está ACTIVADO: al registrarse NO
+//    hay sesión hasta que confirme el mail. En ese caso el
+//    trial se crea en el primer login (iniciarSesion).
+//
+// crearSuscripcionTrial es idempotente: si el trial ya
+// existe, no crea otro. Por eso es seguro llamarlo en los
+// dos lugares.
 // ═══════════════════════════════════════════════════════
 
 import { supabase } from './supabase';
@@ -16,8 +26,10 @@ import { crearSuscripcionTrial } from './suscripcion';
 
 // ───────────────────────────────────────────
 // Registrar un familiar nuevo (email + contraseña)
-// Solo crea la cuenta. El trial se crea al entrar
-// por primera vez (ver iniciarSesion).
+// Devuelve haySesion = true cuando el familiar ya quedó
+// logueado (Confirm email desactivado). El frontend usa
+// ese dato para mandarlo directo a /configurar o para
+// mostrarle la pantalla de "revisá tu mail".
 // ───────────────────────────────────────────
 export async function registrarFamiliar(email, password, nombre) {
   try {
@@ -33,11 +45,15 @@ export async function registrarFamiliar(email, password, nombre) {
       return { ok: false, mensaje: traducirError(error.message) };
     }
 
-    // NOTA: NO se crea el trial acá a propósito.
-    // Con "Confirm email" activado, el familiar todavía no
-    // confirmó su mail. El trial se crea al primer login.
+    // ¿Supabase devolvió una sesión? Si sí, "Confirm email"
+    // está desactivado y el familiar ya está adentro: le
+    // creamos el trial de 7 días ahora mismo.
+    const haySesion = !!data.session;
+    if (haySesion && data.user?.id) {
+      await crearSuscripcionTrial(data.user.id);
+    }
 
-    return { ok: true, usuario: data.user, mensaje: 'registrado' };
+    return { ok: true, usuario: data.user, haySesion, mensaje: 'registrado' };
   } catch (err) {
     return { ok: false, mensaje: 'Hubo un problema. Probá de nuevo en un momento.' };
   }
