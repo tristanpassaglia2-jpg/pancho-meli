@@ -45,6 +45,7 @@ export default async function handler(req, res) {
           }
         },
         back_url: 'https://pancho-meli.vercel.app/configurar',
+        notification_url: 'https://pancho-meli.vercel.app/api/webhook-mp',
         payer_email: email,
         external_reference: user_id || email
       })
